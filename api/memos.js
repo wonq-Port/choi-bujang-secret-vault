@@ -19,7 +19,7 @@ function getVerifier() {
 }
 
 export default async function handler(req, res) {
-  // 1. 요청 토큰 검증 (미인증 시 401 JSON 반환)
+  // 1. 요청 토큰 검증
   const authHeader = req.headers.authorization;
   if (!authHeader) {
     return res.status(401).json({ error: 'Unauthorized: missing authorization header' });
@@ -36,6 +36,8 @@ export default async function handler(req, res) {
   if (!user || !user.userId) {
     return res.status(401).json({ error: 'Unauthorized: invalid token' });
   }
+
+  const currentUserId = user.userId;
 
   const supabaseUrl = process.env.SUPABASE_URL;
   const supabaseSecretKey = process.env.SUPABASE_SECRET_KEY;
@@ -58,26 +60,31 @@ export default async function handler(req, res) {
 
   try {
     // ----------------------------------------------------
-    // GET: 단건 조회 또는 목록 조회
+    // GET: 단건 조회 또는 목록 조회 (본인 메모만)
     // ----------------------------------------------------
     if (req.method === 'GET') {
       if (memoId) {
-        // 단건 GET: /api/memos/:id -> { id, title, body }
-        const response = await fetch(`${supabaseUrl}/rest/v1/memos?id=eq.${memoId}&select=id,title,body,content`, { headers });
+        // 단건 GET: DB의 owner_id와 로그인 사용자 비교
+        const response = await fetch(`${supabaseUrl}/rest/v1/memos?id=eq.${memoId}&select=id,title,body,content,owner_id`, { headers });
         const items = await response.json();
         if (!response.ok || !items || items.length === 0) {
           return res.status(404).json({ error: 'Not Found' });
         }
         const item = items[0];
+
+        // 타인의 메모인 경우 접근 거부 (IDOR 차단)
+        if (item.owner_id && item.owner_id !== currentUserId) {
+          return res.status(403).json({ error: 'Forbidden: not your memo' });
+        }
+
         return res.status(200).json({
           id: item.id,
           title: item.title,
           body: item.body || item.content || ''
         });
       } else {
-        // 목록 GET: /api/memos -> 로그인 사용자의 메모 배열 반환
-        // (본인 owner_id 또는 초기 샘플 메모 조회)
-        const response = await fetch(`${supabaseUrl}/rest/v1/memos?or=(owner_id.eq.${user.userId},owner_id.is.null)&select=id,title,body,content,created_at&order=created_at.desc`, { headers });
+        // 목록 GET: 본인 소유의 메모 배열만 반환
+        const response = await fetch(`${supabaseUrl}/rest/v1/memos?owner_id=eq.${currentUserId}&select=id,title,body,content,created_at&order=created_at.desc`, { headers });
         const items = await response.json();
         const memos = (items || []).map(item => ({
           id: item.id,
@@ -89,7 +96,8 @@ export default async function handler(req, res) {
     }
 
     // ----------------------------------------------------
-    // POST: 메모 추가 -> { id, title, body }
+    // POST: 메모 추가
+    // 요청 본문의 owner_id는 무시하고 검증된 currentUserId로 강제 저장
     // ----------------------------------------------------
     if (req.method === 'POST') {
       const body = req.body || {};
@@ -102,7 +110,7 @@ export default async function handler(req, res) {
         title: title,
         body: memoBody,
         content: memoBody,
-        owner_id: user.userId // 검증된 사용자 ID를 owner_id로 저장
+        owner_id: currentUserId // 검증된 사용자 ID로 저장
       };
 
       const response = await fetch(`${supabaseUrl}/rest/v1/memos`, {
@@ -115,7 +123,6 @@ export default async function handler(req, res) {
         return res.status(response.status).json({ error: 'Failed to create memo' });
       }
 
-      const created = await response.json();
       return res.status(201).json({
         id: newId,
         title: title,
@@ -124,23 +131,42 @@ export default async function handler(req, res) {
     }
 
     // ----------------------------------------------------
-    // PUT: 메모 수정 -> /api/memos/:id
-    // (4단계 전까지는 타인 메모 소유권 검사 생략)
+    // PUT: 메모 수정 (/api/memos/:id)
+    // 기존 행의 소유자 확인 및 소유권 변경 시도 차단
     // ----------------------------------------------------
     if (req.method === 'PUT') {
       if (!memoId) {
         return res.status(400).json({ error: 'Missing memo ID' });
       }
 
-      const body = req.body || {};
-      const title = body.title;
-      const memoBody = body.body || body.content;
+      // 1. 기존 메모의 소유자 확인
+      const checkRes = await fetch(`${supabaseUrl}/rest/v1/memos?id=eq.${memoId}&select=id,owner_id`, { headers });
+      const items = await checkRes.json();
+      if (!checkRes.ok || !items || items.length === 0) {
+        return res.status(404).json({ error: 'Not Found' });
+      }
+      const existing = items[0];
 
-      const updateData = {};
-      if (title !== undefined) updateData.title = title;
-      if (memoBody !== undefined) {
-        updateData.body = memoBody;
-        updateData.content = memoBody;
+      // 기존 소유자가 본인이 아니면 수정 거부
+      if (existing.owner_id && existing.owner_id !== currentUserId) {
+        return res.status(403).json({ error: 'Forbidden: not your memo' });
+      }
+
+      const body = req.body || {};
+
+      // 본문으로 owner_id를 타인으로 변경하려는 시도 차단
+      if (body.owner_id && body.owner_id !== currentUserId) {
+        return res.status(403).json({ error: 'Forbidden: cannot change owner_id' });
+      }
+
+      const updateData = {
+        owner_id: currentUserId
+      };
+      if (body.title !== undefined) updateData.title = body.title;
+      if (body.body !== undefined || body.content !== undefined) {
+        const text = body.body !== undefined ? body.body : body.content;
+        updateData.body = text;
+        updateData.content = text;
       }
 
       const response = await fetch(`${supabaseUrl}/rest/v1/memos?id=eq.${memoId}`, {
@@ -163,11 +189,25 @@ export default async function handler(req, res) {
     }
 
     // ----------------------------------------------------
-    // DELETE: 메모 삭제 -> /api/memos/:id
+    // DELETE: 메모 삭제 (/api/memos/:id)
+    // 기존 행 소유자가 본인인지 확인 후 삭제
     // ----------------------------------------------------
     if (req.method === 'DELETE') {
       if (!memoId) {
         return res.status(400).json({ error: 'Missing memo ID' });
+      }
+
+      // 기존 메모의 소유자 확인
+      const checkRes = await fetch(`${supabaseUrl}/rest/v1/memos?id=eq.${memoId}&select=id,owner_id`, { headers });
+      const items = await checkRes.json();
+      if (!checkRes.ok || !items || items.length === 0) {
+        return res.status(404).json({ error: 'Not Found' });
+      }
+      const existing = items[0];
+
+      // 기존 소유자가 본인이 아니면 삭제 거부
+      if (existing.owner_id && existing.owner_id !== currentUserId) {
+        return res.status(403).json({ error: 'Forbidden: not your memo' });
       }
 
       const response = await fetch(`${supabaseUrl}/rest/v1/memos?id=eq.${memoId}`, {
