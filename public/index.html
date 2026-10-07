@@ -129,6 +129,52 @@
     supabaseAuth.auth.getSession().then(({ data: { session } }) => {
       updateUI(session);
     });
+    // 메모 로드 함수 (토큰 전달)
+    async function loadMemos(session) {
+      const memosContainer = document.getElementById('memos-container') || document.querySelector('.memos');
+      
+      // 로그인되지 않은 경우 메모를 비우고 종료
+      if (!session || !session.access_token) {
+        if (memosContainer) memosContainer.innerHTML = '<p>로그인 후 메모를 확인할 수 있습니다.</p>';
+        return;
+      }
+    
+      try {
+        const res = await fetch('/api/memos', {
+          headers: {
+            'Authorization': `Bearer ${session.access_token}`
+          }
+        });
+    
+        if (!res.ok) {
+          if (memosContainer) memosContainer.innerHTML = '<p>메모를 불러올 수 없습니다.</p>';
+          return;
+        }
+    
+        const data = await res.json();
+        // 기존 렌더링 함수에 메모 목록 전달
+        if (typeof renderMemos === 'function') {
+          renderMemos(data.notes || data);
+        }
+      } catch (err) {
+        console.error('메모 로드 오류:', err);
+      }
+    }
+    
+    // updateUI 함수 내부에서 loadMemos 호출 연결
+    function updateUI(session) {
+      authError.textContent = '';
+      if (session && session.user) {
+        loggedOutView.style.display = 'none';
+        loggedInView.style.display = 'flex';
+        userDisplay.textContent = `${session.user.email} 님 접속 중`;
+        loadMemos(session); // 로그인 시 메모 조회
+      } else {
+        loggedOutView.style.display = 'block';
+        loggedInView.style.display = 'none';
+        loadMemos(null);    // 로그아웃 시 메모 숨김/제거
+      }
+    }
   </script>
 </body>
 </html>
