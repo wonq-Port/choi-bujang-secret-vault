@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>BYTE BACK | 점령된 자료실</title>
+  <title>BYTE BACK | 보호된 자료실</title>
   <style>
     :root { color-scheme: dark; font-family: system-ui, sans-serif; }
     body { margin: 0; min-height: 100vh; background: #101a28; color: #ecf4ff; }
@@ -12,48 +12,62 @@
     .eyebrow { color: #8ad8df; font-size: 14px; font-weight: 700; letter-spacing: .08em; }
     h1 { margin: 16px 0; font-size: clamp(30px, 7vw, 48px); line-height: 1.2; }
     p { font-size: 17px; line-height: 1.7; color: #bfd0e5; }
-    .notice { margin: 26px 0; padding: 18px; border: 1px solid #51667c; border-radius: 14px; color: #ecf4ff; background: #1a2a3d; }
+    .card { margin: 20px 0; padding: 18px; border: 1px solid #51667c; border-radius: 14px; background: #1a2a3d; }
     ul { list-style: none; display: grid; gap: 12px; padding: 0; }
-    li { border: 1px solid #51667c; border-radius: 14px; padding: 17px 19px; background: #1a2a3d; }
+    li { border: 1px solid #51667c; border-radius: 14px; padding: 17px 19px; background: #1a2a3d; display: flex; justify-content: space-between; align-items: flex-start; }
+    .memo-text { flex-grow: 1; }
     strong { display: block; font-size: 18px; margin-bottom: 5px; }
-    li span { color: #bfd0e5; }
+    li span { color: #bfd0e5; word-break: break-all; }
+    .actions { display: flex; gap: 8px; margin-left: 12px; }
+    button { padding: 8px 14px; border-radius: 6px; border: 1px solid #51667c; background: #101a28; color: #fff; cursor: pointer; font-size: 14px; }
+    button.primary { background: #8ad8df; color: #101a28; font-weight: bold; border: none; }
+    button.danger { border-color: #ff6b81; color: #ff6b81; }
+    input, textarea { padding: 10px; border-radius: 6px; border: 1px solid #51667c; background: #101a28; color: #fff; width: 100%; box-sizing: border-box; }
   </style>
 </head>
 <body>
   <main>
     <div class="eyebrow">BYTE BACK · 3단계 보호 조치</div>
     <h1>보호된 자료실</h1>
-    <p>로그인한 사용자만 가상 자료를 열람할 수 있습니다.</p>
+    <p>로그인한 사용자만 가상 자료를 조회·추가·수정·삭제할 수 있습니다.</p>
 
-    <!-- 인증 UI 컨테이너 -->
-    <div id="auth-container" style="margin: 20px 0; padding: 18px; border: 1px solid #51667c; border-radius: 14px; background: #1a2a3d;">
-      <!-- 1. 로그인 전 폼 -->
+    <!-- 1. 인증 영역 -->
+    <div id="auth-container" class="card">
       <div id="logged-out-view">
         <h3 style="margin-top: 0;">로그인</h3>
         <form id="login-form" style="display: flex; gap: 8px; flex-wrap: wrap;">
-          <input type="email" id="auth-email" placeholder="이메일" required style="padding: 10px; border-radius: 6px; border: 1px solid #51667c; background: #101a28; color: #fff;" />
-          <input type="password" id="auth-password" placeholder="비밀번호" required style="padding: 10px; border-radius: 6px; border: 1px solid #51667c; background: #101a28; color: #fff;" />
-          <button type="submit" style="padding: 10px 20px; border-radius: 6px; border: none; background: #8ad8df; color: #101a28; font-weight: bold; cursor: pointer;">로그인</button>
+          <input type="email" id="auth-email" placeholder="이메일" required style="width: auto; flex: 1;" />
+          <input type="password" id="auth-password" placeholder="비밀번호" required style="width: auto; flex: 1;" />
+          <button type="submit" class="primary">로그인</button>
         </form>
-        <!-- 로그인 실패 메시지 출력 영역 -->
         <div id="auth-error" style="color: #ff6b81; margin-top: 10px; font-size: 14px;"></div>
       </div>
 
-      <!-- 2. 로그인 후 화면 -->
       <div id="logged-in-view" style="display: none; align-items: center; justify-content: space-between;">
         <span id="user-display" style="font-weight: bold; color: #8ad8df;"></span>
-        <button id="logout-btn" style="padding: 8px 16px; border-radius: 6px; border: 1px solid #51667c; background: #101a28; color: #fff; cursor: pointer;">로그아웃</button>
+        <button id="logout-btn">로그아웃</button>
       </div>
     </div>
 
-    <!-- 메모 목록 -->
+    <!-- 2. 메모 작성 영역 (로그인 시 노출) -->
+    <div id="create-container" class="card" style="display: none;">
+      <h3 style="margin-top: 0;">새 가상 메모 추가</h3>
+      <form id="create-form" style="display: grid; gap: 10px;">
+        <input type="text" id="new-title" placeholder="제목" required />
+        <textarea id="new-body" placeholder="내용" rows="3" required></textarea>
+        <div>
+          <button type="submit" class="primary">메모 추가</button>
+        </div>
+      </form>
+    </div>
+
+    <!-- 3. 메모 목록 -->
     <ul id="notes" aria-live="polite">
       <li>로그인 후 가상 자료를 확인할 수 있습니다.</li>
     </ul>
   </main>
 
   <script type="module">
-    // 1. Supabase 클라이언트 초기화
     const SUPABASE_PROJECT_URL = 'https://giuxpzedmunhvkureyaf.supabase.co';
     const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdpdXhwemVkbXVuaHZrdXJleWFmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTEzNDY1NjEsImV4cCI6MjEwNjkyMjU2MX0.5ZSmrrRQrC1ixaqzUpd4zDqydN0USS0AaRxDNKFl8Ro';
     const supabaseAuth = window.supabase.createClient(SUPABASE_PROJECT_URL, SUPABASE_ANON_KEY);
@@ -65,101 +79,174 @@
     const authError = document.getElementById('auth-error');
     const loginForm = document.getElementById('login-form');
     const logoutBtn = document.getElementById('logout-btn');
+    const createContainer = document.getElementById('create-container');
+    const createForm = document.getElementById('create-form');
 
-    // 2. 메모 불러오기 함수 (토큰을 담아 서버에 요청)
-    async function loadMemos(session) {
-      if (!session || !session.access_token) {
-        const item = document.createElement('li');
-        item.textContent = '로그인 후 가상 자료를 확인할 수 있습니다.';
-        list.replaceChildren(item);
+    let currentSession = null;
+
+    // 1. 메모 목록 불러오기
+    async function loadMemos() {
+      if (!currentSession?.access_token) {
+        list.innerHTML = '<li>로그인 후 가상 자료를 확인할 수 있습니다.</li>';
         return;
       }
 
       try {
         const response = await fetch('/api/memos', {
-          headers: {
-            'Authorization': `Bearer ${session.access_token}`
-          },
+          headers: { 'Authorization': `Bearer ${currentSession.access_token}` },
           cache: 'no-store'
         });
 
-        if (!response.ok) {
-          throw new Error('자료를 불러올 수 없습니다. (인증 실패)');
-        }
-
+        if (!response.ok) throw new Error('자료를 불러올 수 없습니다.');
         const data = await response.json();
-        const memos = data.notes || data;
+        const memos = Array.isArray(data) ? data : (data.notes || []);
 
-        if (!Array.isArray(memos) || memos.length === 0) {
-          const item = document.createElement('li');
-          item.textContent = '등록된 가상 메모가 없습니다.';
-          list.replaceChildren(item);
+        if (memos.length === 0) {
+          list.innerHTML = '<li>등록된 가상 메모가 없습니다.</li>';
           return;
         }
 
         list.replaceChildren(...memos.map(note => {
           const item = document.createElement('li');
+          const textDiv = document.createElement('div');
+          textDiv.className = 'memo-text';
           const title = document.createElement('strong');
-          const content = document.createElement('span');
           title.textContent = note.title;
-          content.textContent = note.content;
-          item.append(title, content);
+          const body = document.createElement('span');
+          body.textContent = note.body || note.content || '';
+          textDiv.append(title, body);
+
+          const actionsDiv = document.createElement('div');
+          actionsDiv.className = 'actions';
+
+          // 수정 버튼
+          const editBtn = document.createElement('button');
+          editBtn.textContent = '수정';
+          editBtn.onclick = () => updateMemo(note.id, note.title, note.body || note.content);
+
+          // 삭제 버튼
+          const deleteBtn = document.createElement('button');
+          deleteBtn.className = 'danger';
+          deleteBtn.textContent = '삭제';
+          deleteBtn.onclick = () => deleteMemo(note.id);
+
+          actionsDiv.append(editBtn, deleteBtn);
+          item.append(textDiv, actionsDiv);
           return item;
         }));
-      } catch (error) {
-        const item = document.createElement('li');
-        item.textContent = error.message;
-        list.replaceChildren(item);
+      } catch (err) {
+        list.innerHTML = `<li>${err.message}</li>`;
       }
     }
 
-    // 3. UI 갱신 함수
+    // 2. 메모 추가
+    createForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      if (!currentSession?.access_token) return;
+
+      const title = document.getElementById('new-title').value;
+      const body = document.getElementById('new-body').value;
+
+      try {
+        const res = await fetch('/api/memos', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${currentSession.access_token}`
+          },
+          body: JSON.stringify({ title, body })
+        });
+        if (res.ok) {
+          createForm.reset();
+          loadMemos();
+        } else {
+          alert('메모 추가 실패');
+        }
+      } catch (err) {
+        alert('네트워크 오류');
+      }
+    });
+
+    // 3. 메모 수정 (PUT)
+    async function updateMemo(id, oldTitle, oldBody) {
+      const newTitle = prompt('수정할 제목:', oldTitle);
+      if (newTitle === null) return;
+      const newBody = prompt('수정할 내용:', oldBody);
+      if (newBody === null) return;
+
+      try {
+        const res = await fetch(`/api/memos/${id}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${currentSession.access_token}`
+          },
+          body: JSON.stringify({ title: newTitle, body: newBody })
+        });
+        if (res.ok) {
+          loadMemos();
+        } else {
+          alert('메모 수정 실패');
+        }
+      } catch (err) {
+        alert('네트워크 오류');
+      }
+    }
+
+    // 4. 메모 삭제 (DELETE)
+    async function deleteMemo(id) {
+      if (!confirm('정말 삭제하시겠습니까?')) return;
+
+      try {
+        const res = await fetch(`/api/memos/${id}`, {
+          method: 'DELETE',
+          headers: {
+            'Authorization': `Bearer ${currentSession.access_token}`
+          }
+        });
+        if (res.ok) {
+          loadMemos();
+        } else {
+          alert('메모 삭제 실패');
+        }
+      } catch (err) {
+        alert('네트워크 오류');
+      }
+    }
+
+    // 5. 로그인 상태 UI 전환
     function updateUI(session) {
+      currentSession = session;
       authError.textContent = '';
       if (session && session.user) {
         loggedOutView.style.display = 'none';
         loggedInView.style.display = 'flex';
+        createContainer.style.display = 'block';
         userDisplay.textContent = `${session.user.email} 님 접속 중`;
-        loadMemos(session);
+        loadMemos();
       } else {
         loggedOutView.style.display = 'block';
         loggedInView.style.display = 'none';
-        document.getElementById('auth-password').value = '';
-        loadMemos(null);
+        createContainer.style.display = 'none';
+        loadMemos();
       }
     }
 
-    // 4. 로그인 이벤트
     loginForm.addEventListener('submit', async (e) => {
       e.preventDefault();
       authError.textContent = '';
-
       const email = document.getElementById('auth-email').value;
       const password = document.getElementById('auth-password').value;
-
-      const { data, error } = await supabaseAuth.auth.signInWithPassword({
-        email,
-        password
-      });
-
-      if (error) {
-        authError.textContent = `로그인 실패: ${error.message}`;
-      }
+      const { error } = await supabaseAuth.auth.signInWithPassword({ email, password });
+      if (error) authError.textContent = `로그인 실패: ${error.message}`;
     });
 
-    // 5. 로그아웃 이벤트
     logoutBtn.addEventListener('click', async () => {
       await supabaseAuth.auth.signOut();
     });
 
-    // 6. 인증 상태 감지 및 초기 실행
-    supabaseAuth.auth.onAuthStateChange((event, session) => {
-      updateUI(session);
-    });
-
-    supabaseAuth.auth.getSession().then(({ data: { session } }) => {
-      updateUI(session);
-    });
+    supabaseAuth.auth.onAuthStateChange((_, session) => updateUI(session));
+    supabaseAuth.auth.getSession().then(({ data: { session } }) => updateUI(session));
   </script>
 </body>
 </html>
