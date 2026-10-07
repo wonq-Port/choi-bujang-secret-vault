@@ -25,8 +25,8 @@ export default async function handler(req, res) {
         }
 
         const data = await response.json();
-        // 비밀값 없이 메모 목록만 클라이언트에 반환
-        return res.status(200).json(data);
+        // 프론트엔드가 notes 키를 읽을 수 있도록 { notes: data } 형태로 반환
+        return res.status(200).json({ notes: data });
     } catch (err) {
         return res.status(500).json({ error: 'Internal Server Error' });
     }
