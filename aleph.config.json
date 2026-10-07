@@ -1,10 +1,14 @@
 {
-  "step": 1,
-  "repoUrl": "https://replace-with-your-github-repo.example",
-  "publicAppUrl": "https://replace-with-your-vercel-app.example",
+  "step": 3,
+  "repoUrl": "https://github.com/wonq-Port/choi-bujang-secret-vault",
+  "publicAppUrl": "https://choi-bujang-secret-vault-one-phi.vercel.app/",
   "sampleMarker": "SAMPLE_NOTE_1",
   "judgeIssuer": "https://aleph-judge-production.up.railway.app/defense/judge",
-  "identityProvider": null,
+  "identityProvider": {
+    "issuer": "https://<내-프로젝트-ID>.supabase.co/auth/v1",
+    "jwksUrl": "https://<내-프로젝트-ID>.supabase.co/auth/v1/.well-known/jwks.json",
+    "audience": "authenticated"
+  },
   "allowedRoutes": [],
   "originalApiUrl": null,
   "restoreRoute": null
