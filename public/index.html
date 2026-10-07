@@ -12,7 +12,7 @@
     .eyebrow { color: #8ad8df; font-size: 14px; font-weight: 700; letter-spacing: .08em; }
     h1 { margin: 16px 0; font-size: clamp(30px, 7vw, 48px); line-height: 1.2; }
     p { font-size: 17px; line-height: 1.7; color: #bfd0e5; }
-    .notice { margin: 26px 0; padding: 18px; border: 1px solid #d07384; border-radius: 14px; color: #ffe3e8; background: #612a3544; }
+    .notice { margin: 26px 0; padding: 18px; border: 1px solid #51667c; border-radius: 14px; color: #ecf4ff; background: #1a2a3d; }
     ul { list-style: none; display: grid; gap: 12px; padding: 0; }
     li { border: 1px solid #51667c; border-radius: 14px; padding: 17px 19px; background: #1a2a3d; }
     strong { display: block; font-size: 18px; margin-bottom: 5px; }
@@ -21,160 +21,145 @@
 </head>
 <body>
   <main>
-    <div class="eyebrow">BYTE BACK · 1단계 피해 확인</div>
-    <h1>점령된 자료실</h1>
-    <p>지금은 보호 장치가 없는 상태입니다. 아래 기록은 모두 실습을 위해 만든 가상 자료입니다.</p>
-    <div class="notice">로그인하지 않은 방문자도 자료를 볼 수 있습니다. 공개 범위를 확인하고, 다음 제작 단계에서 접근을 차례로 막아 주세요.</div>
+    <div class="eyebrow">BYTE BACK · 3단계 보호 조치</div>
+    <h1>보호된 자료실</h1>
+    <p>로그인한 사용자만 가상 자료를 열람할 수 있습니다.</p>
+
     <!-- 인증 UI 컨테이너 -->
-    <div id="auth-container" style="margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 8px;">
+    <div id="auth-container" style="margin: 20px 0; padding: 18px; border: 1px solid #51667c; border-radius: 14px; background: #1a2a3d;">
       <!-- 1. 로그인 전 폼 -->
       <div id="logged-out-view">
-        <h3>로그인</h3>
+        <h3 style="margin-top: 0;">로그인</h3>
         <form id="login-form" style="display: flex; gap: 8px; flex-wrap: wrap;">
-          <input type="email" id="auth-email" placeholder="이메일" required style="padding: 8px;" />
-          <input type="password" id="auth-password" placeholder="비밀번호" required style="padding: 8px;" />
-          <button type="submit" style="padding: 8px 16px; cursor: pointer;">로그인</button>
+          <input type="email" id="auth-email" placeholder="이메일" required style="padding: 10px; border-radius: 6px; border: 1px solid #51667c; background: #101a28; color: #fff;" />
+          <input type="password" id="auth-password" placeholder="비밀번호" required style="padding: 10px; border-radius: 6px; border: 1px solid #51667c; background: #101a28; color: #fff;" />
+          <button type="submit" style="padding: 10px 20px; border-radius: 6px; border: none; background: #8ad8df; color: #101a28; font-weight: bold; cursor: pointer;">로그인</button>
         </form>
         <!-- 로그인 실패 메시지 출력 영역 -->
-        <div id="auth-error" style="color: red; margin-top: 8px; font-size: 14px;"></div>
+        <div id="auth-error" style="color: #ff6b81; margin-top: 10px; font-size: 14px;"></div>
       </div>
-    
+
       <!-- 2. 로그인 후 화면 -->
       <div id="logged-in-view" style="display: none; align-items: center; justify-content: space-between;">
-        <span id="user-display" style="font-weight: bold;"></span>
-        <button id="logout-btn" style="padding: 6px 12px; cursor: pointer;">로그아웃</button>
+        <span id="user-display" style="font-weight: bold; color: #8ad8df;"></span>
+        <button id="logout-btn" style="padding: 8px 16px; border-radius: 6px; border: 1px solid #51667c; background: #101a28; color: #fff; cursor: pointer;">로그아웃</button>
       </div>
     </div>
-    <ul id="notes" aria-live="polite"><li>가상 자료를 불러오는 중입니다.</li></ul>
+
+    <!-- 메모 목록 -->
+    <ul id="notes" aria-live="polite">
+      <li>로그인 후 가상 자료를 확인할 수 있습니다.</li>
+    </ul>
   </main>
+
   <script type="module">
-    const list = document.querySelector('#notes');
-    try {
-      const response = await fetch('/api/memos', { cache: 'no-store' });
-      if (!response.ok) throw new Error('공개 자료를 읽을 수 없습니다.');
-      const data = await response.json();
-      if (!Array.isArray(data.notes)) throw new Error('자료 형식이 맞지 않습니다.');
-      list.replaceChildren(...data.notes.map(note => {
-        const item = document.createElement('li');
-        const title = document.createElement('strong');
-        const content = document.createElement('span');
-        title.textContent = note.title;
-        content.textContent = note.content;
-        item.append(title, content);
-        return item;
-      }));
-    } catch (error) {
-      const item = document.createElement('li');
-      item.textContent = error.message;
-      list.replaceChildren(item);
-    }
-    // 1. Supabase 클라이언트 초기화 (공식 SDK)
-    const SUPABASE_PROJECT_URL = 'https://giuxpzedmunhvkureyaf.supabase.co'; // 본인 Project URL 입력
-    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdpdXhwemVkbXVuaHZrdXJleWFmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTEzNDY1NjEsImV4cCI6MjEwNjkyMjU2MX0.5ZSmrrRQrC1ixaqzUpd4zDqydN0USS0AaRxDNKFl8Ro';       // 본인 anon public key 입력
+    // 1. Supabase 클라이언트 초기화
+    const SUPABASE_PROJECT_URL = 'https://giuxpzedmunhvkureyaf.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdpdXhwemVkbXVuaHZrdXJleWFmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTEzNDY1NjEsImV4cCI6MjEwNjkyMjU2MX0.5ZSmrrRQrC1ixaqzUpd4zDqydN0USS0AaRxDNKFl8Ro';
     const supabaseAuth = window.supabase.createClient(SUPABASE_PROJECT_URL, SUPABASE_ANON_KEY);
-    
+
+    const list = document.querySelector('#notes');
     const loggedOutView = document.getElementById('logged-out-view');
     const loggedInView = document.getElementById('logged-in-view');
     const userDisplay = document.getElementById('user-display');
     const authError = document.getElementById('auth-error');
     const loginForm = document.getElementById('login-form');
     const logoutBtn = document.getElementById('logout-btn');
-    
-    // 2. 로그인 상태에 따른 화면 상태 전환 함수
+
+    // 2. 메모 불러오기 함수 (토큰을 담아 서버에 요청)
+    async function loadMemos(session) {
+      if (!session || !session.access_token) {
+        const item = document.createElement('li');
+        item.textContent = '로그인 후 가상 자료를 확인할 수 있습니다.';
+        list.replaceChildren(item);
+        return;
+      }
+
+      try {
+        const response = await fetch('/api/memos', {
+          headers: {
+            'Authorization': `Bearer ${session.access_token}`
+          },
+          cache: 'no-store'
+        });
+
+        if (!response.ok) {
+          throw new Error('자료를 불러올 수 없습니다. (인증 실패)');
+        }
+
+        const data = await response.json();
+        const memos = data.notes || data;
+
+        if (!Array.isArray(memos) || memos.length === 0) {
+          const item = document.createElement('li');
+          item.textContent = '등록된 가상 메모가 없습니다.';
+          list.replaceChildren(item);
+          return;
+        }
+
+        list.replaceChildren(...memos.map(note => {
+          const item = document.createElement('li');
+          const title = document.createElement('strong');
+          const content = document.createElement('span');
+          title.textContent = note.title;
+          content.textContent = note.content;
+          item.append(title, content);
+          return item;
+        }));
+      } catch (error) {
+        const item = document.createElement('li');
+        item.textContent = error.message;
+        list.replaceChildren(item);
+      }
+    }
+
+    // 3. UI 갱신 함수
     function updateUI(session) {
       authError.textContent = '';
       if (session && session.user) {
-        // 로그인 상태: 로그인 폼 숨기고, 사용자 이메일과 로그아웃 버튼 표시
         loggedOutView.style.display = 'none';
         loggedInView.style.display = 'flex';
         userDisplay.textContent = `${session.user.email} 님 접속 중`;
+        loadMemos(session);
       } else {
-        // 로그아웃 상태: 로그인 폼 보이고, 사용자 정보 숨김
         loggedOutView.style.display = 'block';
         loggedInView.style.display = 'none';
         document.getElementById('auth-password').value = '';
+        loadMemos(null);
       }
     }
-    
-    // 3. 로그인 처리 (공식 SDK 흐름)
+
+    // 4. 로그인 이벤트
     loginForm.addEventListener('submit', async (e) => {
       e.preventDefault();
       authError.textContent = '';
-    
+
       const email = document.getElementById('auth-email').value;
       const password = document.getElementById('auth-password').value;
-    
+
       const { data, error } = await supabaseAuth.auth.signInWithPassword({
         email,
         password
       });
-    
+
       if (error) {
-        // 로그인 실패 이유를 화면에 출력
         authError.textContent = `로그인 실패: ${error.message}`;
       }
     });
-    
-    // 4. 로그아웃 처리
+
+    // 5. 로그아웃 이벤트
     logoutBtn.addEventListener('click', async () => {
       await supabaseAuth.auth.signOut();
     });
-    
-    // 5. 인증 상태 변화 감지 (로그인/로그아웃 즉시 화면 갱신)
+
+    // 6. 인증 상태 감지 및 초기 실행
     supabaseAuth.auth.onAuthStateChange((event, session) => {
       updateUI(session);
     });
-    
-    // 6. 초기 접속 시 세션 확인
+
     supabaseAuth.auth.getSession().then(({ data: { session } }) => {
       updateUI(session);
     });
-    // 메모 로드 함수 (토큰 전달)
-    async function loadMemos(session) {
-      const memosContainer = document.getElementById('memos-container') || document.querySelector('.memos');
-      
-      // 로그인되지 않은 경우 메모를 비우고 종료
-      if (!session || !session.access_token) {
-        if (memosContainer) memosContainer.innerHTML = '<p>로그인 후 메모를 확인할 수 있습니다.</p>';
-        return;
-      }
-    
-      try {
-        const res = await fetch('/api/memos', {
-          headers: {
-            'Authorization': `Bearer ${session.access_token}`
-          }
-        });
-    
-        if (!res.ok) {
-          if (memosContainer) memosContainer.innerHTML = '<p>메모를 불러올 수 없습니다.</p>';
-          return;
-        }
-    
-        const data = await res.json();
-        // 기존 렌더링 함수에 메모 목록 전달
-        if (typeof renderMemos === 'function') {
-          renderMemos(data.notes || data);
-        }
-      } catch (err) {
-        console.error('메모 로드 오류:', err);
-      }
-    }
-    
-    // updateUI 함수 내부에서 loadMemos 호출 연결
-    function updateUI(session) {
-      authError.textContent = '';
-      if (session && session.user) {
-        loggedOutView.style.display = 'none';
-        loggedInView.style.display = 'flex';
-        userDisplay.textContent = `${session.user.email} 님 접속 중`;
-        loadMemos(session); // 로그인 시 메모 조회
-      } else {
-        loggedOutView.style.display = 'block';
-        loggedInView.style.display = 'none';
-        loadMemos(null);    // 로그아웃 시 메모 숨김/제거
-      }
-    }
   </script>
 </body>
 </html>
