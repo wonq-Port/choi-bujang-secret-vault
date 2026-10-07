@@ -25,6 +25,26 @@
     <h1>점령된 자료실</h1>
     <p>지금은 보호 장치가 없는 상태입니다. 아래 기록은 모두 실습을 위해 만든 가상 자료입니다.</p>
     <div class="notice">로그인하지 않은 방문자도 자료를 볼 수 있습니다. 공개 범위를 확인하고, 다음 제작 단계에서 접근을 차례로 막아 주세요.</div>
+    <!-- 인증 UI 컨테이너 -->
+    <div id="auth-container" style="margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 8px;">
+      <!-- 1. 로그인 전 폼 -->
+      <div id="logged-out-view">
+        <h3>로그인</h3>
+        <form id="login-form" style="display: flex; gap: 8px; flex-wrap: wrap;">
+          <input type="email" id="auth-email" placeholder="이메일" required style="padding: 8px;" />
+          <input type="password" id="auth-password" placeholder="비밀번호" required style="padding: 8px;" />
+          <button type="submit" style="padding: 8px 16px; cursor: pointer;">로그인</button>
+        </form>
+        <!-- 로그인 실패 메시지 출력 영역 -->
+        <div id="auth-error" style="color: red; margin-top: 8px; font-size: 14px;"></div>
+      </div>
+    
+      <!-- 2. 로그인 후 화면 -->
+      <div id="logged-in-view" style="display: none; align-items: center; justify-content: space-between;">
+        <span id="user-display" style="font-weight: bold;"></span>
+        <button id="logout-btn" style="padding: 6px 12px; cursor: pointer;">로그아웃</button>
+      </div>
+    </div>
     <ul id="notes" aria-live="polite"><li>가상 자료를 불러오는 중입니다.</li></ul>
   </main>
   <script type="module">
@@ -48,6 +68,67 @@
       item.textContent = error.message;
       list.replaceChildren(item);
     }
+    // 1. Supabase 클라이언트 초기화 (공식 SDK)
+    const SUPABASE_PROJECT_URL = 'https://giuxpzedmunhvkureyaf.supabase.co'; // 본인 Project URL 입력
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdpdXhwemVkbXVuaHZrdXJleWFmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTEzNDY1NjEsImV4cCI6MjEwNjkyMjU2MX0.5ZSmrrRQrC1ixaqzUpd4zDqydN0USS0AaRxDNKFl8Ro';       // 본인 anon public key 입력
+    const supabaseAuth = window.supabase.createClient(SUPABASE_PROJECT_URL, SUPABASE_ANON_KEY);
+    
+    const loggedOutView = document.getElementById('logged-out-view');
+    const loggedInView = document.getElementById('logged-in-view');
+    const userDisplay = document.getElementById('user-display');
+    const authError = document.getElementById('auth-error');
+    const loginForm = document.getElementById('login-form');
+    const logoutBtn = document.getElementById('logout-btn');
+    
+    // 2. 로그인 상태에 따른 화면 상태 전환 함수
+    function updateUI(session) {
+      authError.textContent = '';
+      if (session && session.user) {
+        // 로그인 상태: 로그인 폼 숨기고, 사용자 이메일과 로그아웃 버튼 표시
+        loggedOutView.style.display = 'none';
+        loggedInView.style.display = 'flex';
+        userDisplay.textContent = `${session.user.email} 님 접속 중`;
+      } else {
+        // 로그아웃 상태: 로그인 폼 보이고, 사용자 정보 숨김
+        loggedOutView.style.display = 'block';
+        loggedInView.style.display = 'none';
+        document.getElementById('auth-password').value = '';
+      }
+    }
+    
+    // 3. 로그인 처리 (공식 SDK 흐름)
+    loginForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      authError.textContent = '';
+    
+      const email = document.getElementById('auth-email').value;
+      const password = document.getElementById('auth-password').value;
+    
+      const { data, error } = await supabaseAuth.auth.signInWithPassword({
+        email,
+        password
+      });
+    
+      if (error) {
+        // 로그인 실패 이유를 화면에 출력
+        authError.textContent = `로그인 실패: ${error.message}`;
+      }
+    });
+    
+    // 4. 로그아웃 처리
+    logoutBtn.addEventListener('click', async () => {
+      await supabaseAuth.auth.signOut();
+    });
+    
+    // 5. 인증 상태 변화 감지 (로그인/로그아웃 즉시 화면 갱신)
+    supabaseAuth.auth.onAuthStateChange((event, session) => {
+      updateUI(session);
+    });
+    
+    // 6. 초기 접속 시 세션 확인
+    supabaseAuth.auth.getSession().then(({ data: { session } }) => {
+      updateUI(session);
+    });
   </script>
 </body>
 </html>
