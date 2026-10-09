@@ -2,7 +2,6 @@
 <html lang="ko">
 <head>
   <meta charset="utf-8">
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>BYTE BACK | 보호된 자료실</title>
   <style>
@@ -27,9 +26,9 @@
 </head>
 <body>
   <main>
-    <div class="eyebrow">BYTE BACK · 3단계 보호 조치</div>
+    <div class="eyebrow">BYTE BACK · 5단계 서버 집중화</div>
     <h1>보호된 자료실</h1>
-    <p>로그인한 사용자만 가상 자료를 조회·추가·수정·삭제할 수 있습니다.</p>
+    <p>모든 데이터와 인증 요청이 서버를 통해서만 안전하게 처리됩니다.</p>
 
     <!-- 1. 인증 영역 -->
     <div id="auth-container" class="card">
@@ -49,7 +48,7 @@
       </div>
     </div>
 
-    <!-- 2. 메모 작성 영역 (로그인 시 노출) -->
+    <!-- 2. 메모 작성 영역 -->
     <div id="create-container" class="card" style="display: none;">
       <h3 style="margin-top: 0;">새 가상 메모 추가</h3>
       <form id="create-form" style="display: grid; gap: 10px;">
@@ -68,10 +67,7 @@
   </main>
 
   <script type="module">
-    const SUPABASE_PROJECT_URL = 'https://giuxpzedmunhvkureyaf.supabase.co';
-    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdpdXhwemVkbXVuaHZrdXJleWFmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTEzNDY1NjEsImV4cCI6MjEwNjkyMjU2MX0.5ZSmrrRQrC1ixaqzUpd4zDqydN0USS0AaRxDNKFl8Ro';
-    const supabaseAuth = window.supabase.createClient(SUPABASE_PROJECT_URL, SUPABASE_ANON_KEY);
-
+    // 화면에 Supabase 키나 SDK가 전혀 존재하지 않음!
     const list = document.querySelector('#notes');
     const loggedOutView = document.getElementById('logged-out-view');
     const loggedInView = document.getElementById('logged-in-view');
@@ -82,18 +78,19 @@
     const createContainer = document.getElementById('create-container');
     const createForm = document.getElementById('create-form');
 
-    let currentSession = null;
+    let currentToken = null;
+    let currentUser = null;
 
-    // 1. 메모 목록 불러오기
+    // 1. 메모 로드
     async function loadMemos() {
-      if (!currentSession?.access_token) {
+      if (!currentToken) {
         list.innerHTML = '<li>로그인 후 가상 자료를 확인할 수 있습니다.</li>';
         return;
       }
 
       try {
         const response = await fetch('/api/memos', {
-          headers: { 'Authorization': `Bearer ${currentSession.access_token}` },
+          headers: { 'Authorization': `Bearer ${currentToken}` },
           cache: 'no-store'
         });
 
@@ -119,12 +116,10 @@
           const actionsDiv = document.createElement('div');
           actionsDiv.className = 'actions';
 
-          // 수정 버튼
           const editBtn = document.createElement('button');
           editBtn.textContent = '수정';
           editBtn.onclick = () => updateMemo(note.id, note.title, note.body || note.content);
 
-          // 삭제 버튼
           const deleteBtn = document.createElement('button');
           deleteBtn.className = 'danger';
           deleteBtn.textContent = '삭제';
@@ -142,7 +137,7 @@
     // 2. 메모 추가
     createForm.addEventListener('submit', async (e) => {
       e.preventDefault();
-      if (!currentSession?.access_token) return;
+      if (!currentToken) return;
 
       const title = document.getElementById('new-title').value;
       const body = document.getElementById('new-body').value;
@@ -152,7 +147,7 @@
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${currentSession.access_token}`
+            'Authorization': `Bearer ${currentToken}`
           },
           body: JSON.stringify({ title, body })
         });
@@ -167,7 +162,7 @@
       }
     });
 
-    // 3. 메모 수정 (PUT)
+    // 3. 메모 수정
     async function updateMemo(id, oldTitle, oldBody) {
       const newTitle = prompt('수정할 제목:', oldTitle);
       if (newTitle === null) return;
@@ -179,7 +174,7 @@
           method: 'PUT',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${currentSession.access_token}`
+            'Authorization': `Bearer ${currentToken}`
           },
           body: JSON.stringify({ title: newTitle, body: newBody })
         });
@@ -193,16 +188,14 @@
       }
     }
 
-    // 4. 메모 삭제 (DELETE)
+    // 4. 메모 삭제
     async function deleteMemo(id) {
       if (!confirm('정말 삭제하시겠습니까?')) return;
 
       try {
         const res = await fetch(`/api/memos/${id}`, {
           method: 'DELETE',
-          headers: {
-            'Authorization': `Bearer ${currentSession.access_token}`
-          }
+          headers: { 'Authorization': `Bearer ${currentToken}` }
         });
         if (res.ok) {
           loadMemos();
@@ -214,39 +207,49 @@
       }
     }
 
-    // 5. 로그인 상태 UI 전환
-    function updateUI(session) {
-      currentSession = session;
-      authError.textContent = '';
-      if (session && session.user) {
-        loggedOutView.style.display = 'none';
-        loggedInView.style.display = 'flex';
-        createContainer.style.display = 'block';
-        userDisplay.textContent = `${session.user.email} 님 접속 중`;
-        loadMemos();
-      } else {
-        loggedOutView.style.display = 'block';
-        loggedInView.style.display = 'none';
-        createContainer.style.display = 'none';
-        loadMemos();
-      }
-    }
-
+    // 5. 로그인 (서버 함수 /api/login 호출)
     loginForm.addEventListener('submit', async (e) => {
       e.preventDefault();
       authError.textContent = '';
       const email = document.getElementById('auth-email').value;
       const password = document.getElementById('auth-password').value;
-      const { error } = await supabaseAuth.auth.signInWithPassword({ email, password });
-      if (error) authError.textContent = `로그인 실패: ${error.message}`;
+
+      try {
+        const res = await fetch('/api/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password })
+        });
+
+        const data = await res.json();
+        if (!res.ok) {
+          authError.textContent = `로그인 실패: ${data.error || '인증 오류'}`;
+          return;
+        }
+
+        currentToken = data.access_token;
+        currentUser = data.user;
+
+        loggedOutView.style.display = 'none';
+        loggedInView.style.display = 'flex';
+        createContainer.style.display = 'block';
+        userDisplay.textContent = `${currentUser.email} 님 접속 중`;
+        loadMemos();
+      } catch (err) {
+        authError.textContent = '로그인 서버 연결 오류';
+      }
     });
 
-    logoutBtn.addEventListener('click', async () => {
-      await supabaseAuth.auth.signOut();
+    // 6. 로그아웃
+    logoutBtn.addEventListener('click', () => {
+      currentToken = null;
+      currentUser = null;
+      loggedOutView.style.display = 'block';
+      loggedInView.style.display = 'none';
+      createContainer.style.display = 'none';
+      document.getElementById('auth-password').value = '';
+      loadMemos();
     });
-
-    supabaseAuth.auth.onAuthStateChange((_, session) => updateUI(session));
-    supabaseAuth.auth.getSession().then(({ data: { session } }) => updateUI(session));
   </script>
 </body>
 </html>
