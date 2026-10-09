@@ -16,6 +16,6 @@
     "PUT /api/memos/:id",
     "DELETE /api/memos/:id"
   ],
-  "originalApiUrl": null,
+  "originalApiUrl": "https://giuxpzedmunhvkureyaf.supabase.co/rest/v1/memos",
   "restoreRoute": null
 }
