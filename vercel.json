@@ -1,5 +1,7 @@
 {
   "rewrites": [
+    { "source": "/api/restore/:id", "destination": "/api/memos?zone=restore&id=:id" },
+    { "source": "/api/restore", "destination": "/api/memos?zone=restore" },
     { "source": "/api/memos/:id", "destination": "/api/memos?zone=memos&id=:id" },
     { "source": "/api/notes/:id", "destination": "/api/memos?zone=notes&id=:id" },
     { "source": "/api/notes", "destination": "/api/memos?zone=notes" },
