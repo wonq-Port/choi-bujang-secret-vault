@@ -4,7 +4,63 @@ export const RULE_IDS = Object.freeze([
   'step_up_required',
   'zone_access',
   'burst_read',
+  'policy_restored',
 ]);
+
+export const VERIFIED_POLICY_SNAPSHOT = Object.freeze({
+  schema: 'aleph.policy.backup.v1',
+  policyRevision: 1,
+  ruleIds: [
+    'starter.deny',
+    'device_registered',
+    'step_up_required',
+    'zone_access',
+    'burst_read',
+    'policy_restored',
+  ],
+});
+
+export function diffPolicy(backup = VERIFIED_POLICY_SNAPSHOT, current = {}) {
+  if (
+    !backup ||
+    typeof backup !== 'object' ||
+    backup.schema !== 'aleph.policy.backup.v1' ||
+    !Number.isInteger(backup.policyRevision) ||
+    backup.policyRevision < 1 ||
+    !Array.isArray(backup.ruleIds) ||
+    backup.ruleIds.length === 0
+  ) {
+    throw new Error('policy_backup_verification_failed');
+  }
+  const currentRules = Array.isArray(current?.ruleIds) ? current.ruleIds : [];
+  const missingRules = backup.ruleIds.filter((r) => !currentRules.includes(r));
+  const extraRules = currentRules.filter((r) => !backup.ruleIds.includes(r));
+  return {
+    targetRevision: backup.policyRevision,
+    currentRevision: current?.policyRevision ?? null,
+    missingRules,
+    extraRules,
+    changed:
+      missingRules.length > 0 ||
+      extraRules.length > 0 ||
+      current?.policyRevision !== backup.policyRevision,
+  };
+}
+
+export function restorePolicy(backup = VERIFIED_POLICY_SNAPSHOT, current = {}, auditLog = []) {
+  const diff = diffPolicy(backup, current);
+  const preservedAudit = Array.isArray(auditLog) ? [...auditLog] : [];
+  return {
+    restoredPolicy: {
+      ...current,
+      schema: backup.schema,
+      policyRevision: backup.policyRevision,
+      ruleIds: [...backup.ruleIds],
+    },
+    diff,
+    auditLog: preservedAudit,
+  };
+}
 
 const RESERVED_IDS = new Set([
   'export',
@@ -62,6 +118,9 @@ const NOTE_ITEM_ROUTE = /^(GET|PUT|PATCH|DELETE) \/(?:api\/)?(?:notes?|memos?)\/
 const NOTICE_PATH = /^\/(?:api\/)?(?:class[-_])?(?:notices?|announcements?)(?:\/([^/?#]+))?$/u;
 const NOTICE_ROUTE = /^(GET|POST|PUT|PATCH|DELETE) \/(?:api\/)?(?:class[-_])?(?:notices?|announcements?)(?:\/:[A-Za-z0-9_]+)?$/u;
 
+const RESTORE_PATH = /^\/(?:api\/)?restore(?:\/([^/?#]+))?$/u;
+const RESTORE_ROUTE = /^POST \/(?:api\/)?restore(?:\/:[A-Za-z0-9_]+)?$/u;
+
 const INSTRUCTOR_PATH = /^\/(?:api\/)?(?:instructor|teacher|admin|staff|faculty|grading)(?:\/.*)?$/iu;
 
 function isRevokedOrBurst(request) {
@@ -112,6 +171,13 @@ function checkZoneAccess(request) {
     route.includes('/admin')
   ) {
     return { allowed: false, reasonCode: 'instructor_zone_denied' };
+  }
+
+  if (service === 'restore' || RESTORE_PATH.test(path) || RESTORE_ROUTE.test(route)) {
+    if (method === 'POST' && RESTORE_PATH.test(path) && RESTORE_ROUTE.test(route)) {
+      return { allowed: true };
+    }
+    return { allowed: false, reasonCode: 'invalid_restore_route' };
   }
 
   const noticePathMatch = NOTICE_PATH.exec(path);
@@ -253,6 +319,16 @@ export async function decide(request) {
     };
   }
 
+  if (!Number.isInteger(request?.policyRevision) || request.policyRevision < 1) {
+    return {
+      schema: 'aleph.decision.v1',
+      requestId,
+      decision: 'deny',
+      reasonCode: 'invalid_policy_revision',
+      ruleIds: ['policy_restored'],
+    };
+  }
+
   if (isRevokedOrBurst(request)) {
     return {
       schema: 'aleph.decision.v1',
@@ -281,7 +357,7 @@ export async function decide(request) {
         requestId,
         decision: 'allow',
         reasonCode: 'approved',
-        ruleIds: ['device_registered', 'step_up_required', 'zone_access'],
+        ruleIds: ['device_registered', 'step_up_required', 'zone_access', 'policy_restored'],
       };
     }
 
@@ -299,6 +375,6 @@ export async function decide(request) {
     requestId,
     decision: 'allow',
     reasonCode: 'approved',
-    ruleIds: ['device_registered', 'zone_access'],
+    ruleIds: ['device_registered', 'zone_access', 'policy_restored'],
   };
 }
