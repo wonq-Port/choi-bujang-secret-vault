@@ -1,6 +1,12 @@
 {
   "rewrites": [
-    { "source": "/api/memos/:id", "destination": "/api/memos?id=:id" }
+    { "source": "/api/memos/:id", "destination": "/api/memos?zone=memos&id=:id" },
+    { "source": "/api/notes/:id", "destination": "/api/memos?zone=notes&id=:id" },
+    { "source": "/api/notes", "destination": "/api/memos?zone=notes" },
+    { "source": "/api/notices/:id", "destination": "/api/memos?zone=notices&id=:id" },
+    { "source": "/api/notices", "destination": "/api/memos?zone=notices" },
+    { "source": "/api/instructor/:id", "destination": "/api/memos?zone=instructor&id=:id" },
+    { "source": "/api/instructor", "destination": "/api/memos?zone=instructor" }
   ],
   "headers": [
     {
