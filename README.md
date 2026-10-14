@@ -49,3 +49,12 @@
    ```bash
    npm run fixture:7
    npm run decider:test
+## 8단계: 자료마다 갈 수 있는 구역을 나눕니다
+
+### 구역 분리 및 경로·권한 검증 확인
+1. 메모(`memo:<id>`)와 반 공지(`notice:<id>`)를 서로 다른 자원 ID와 구역으로 분리했습니다.
+2. 판정기(`src/decider.mjs`)의 `zone_access` 규칙:
+   - 메모 구역은 단건 경로(`/:id`)만 허용하고, 전체 목록 경로·쿼리 문자열(`queryLength > 0`)·예약 기능 경로(`/notes/export` 등)를 거부합니다.
+   - 반 공지 구역은 읽기(`GET`)만 허용하고 쓰기(`POST`·`PUT`·`PATCH`·`DELETE`)는 모두 거부합니다.
+   - 강사 자료 구역 및 알 수 없는 경로는 모두 거부합니다.
+3. 서버 API(`api/memos.js`)에서도 클라이언트가 보낸 `role`이나 구역 값을 신뢰하지 않고 검증된 소유자와 구역 권한을 대조합니다.
