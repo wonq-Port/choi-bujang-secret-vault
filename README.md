@@ -31,3 +31,11 @@
    ```bash
    git grep "주간 업무 보고"
    grep -rn "주간 업무 보고" dist/ public/ .
+
+## 6단계: 등록한 기기만 자료실에 들어옵니다
+
+### 판정기 기기 등록 규칙 확인 순서
+1. 이번 단계에는 별도로 설치할 접속 프로그램이 없으며, 스타터 저장소의 판정기(`src/decider.mjs`)에서 `request.deviceRegistered` 조건을 검사합니다.
+2. 아래 명령으로 판정기 테스트를 실행합니다:
+   ```bash
+   npm run decider:test
