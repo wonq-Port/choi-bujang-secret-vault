@@ -1,5 +1,5 @@
 {
-  "step": 9,
+  "step": 10,
   "repoUrl": "https://github.com/wonq-Port/choi-bujang-secret-vault",
   "publicAppUrl": "https://choi-bujang-secret-vault-one-phi.vercel.app/",
   "sampleMarker": "SAMPLE_NOTE_1",
@@ -17,8 +17,10 @@
     "PUT /api/memos/:id",
     "DELETE /api/memos/:id",
     "GET /api/notices",
-    "GET /api/notices/:id"
+    "GET /api/notices/:id",
+    "POST /api/restore",
+    "POST /api/restore/:id"
   ],
   "originalApiUrl": "https://giuxpzedmunhvkureyaf.supabase.co/rest/v1/memos",
-  "restoreRoute": null
+  "restoreRoute": "/api/restore"
 }
