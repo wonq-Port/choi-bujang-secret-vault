@@ -3,6 +3,7 @@ export const RULE_IDS = Object.freeze([
   'device_registered',
   'step_up_required',
   'zone_access',
+  'burst_read',
 ]);
 
 const RESERVED_IDS = new Set([
@@ -63,6 +64,32 @@ const NOTICE_ROUTE = /^(GET|POST|PUT|PATCH|DELETE) \/(?:api\/)?(?:class[-_])?(?:
 
 const INSTRUCTOR_PATH = /^\/(?:api\/)?(?:instructor|teacher|admin|staff|faculty|grading)(?:\/.*)?$/iu;
 
+function isRevokedOrBurst(request) {
+  const recentEvents = request?.recentEvents;
+  if (!Array.isArray(recentEvents)) return false;
+
+  return recentEvents.some((event) => {
+    if (!event || typeof event !== 'object') return false;
+    const kind = typeof event.kind === 'string' ? event.kind.toLowerCase() : '';
+    const count = typeof event.count === 'number' ? event.count : 0;
+    const age = typeof event.ageSeconds === 'number' ? event.ageSeconds : 0;
+
+    if (
+      kind === 'burst_read' ||
+      kind === 'propose_revocation' ||
+      kind.includes('revok')
+    ) {
+      return true;
+    }
+
+    if (count > 120 && age >= 0 && age <= 600) {
+      return true;
+    }
+
+    return false;
+  });
+}
+
 function checkZoneAccess(request) {
   const service = typeof request?.service === 'string' ? request.service.trim().toLowerCase() : '';
   const method = typeof request?.method === 'string' ? request.method.trim().toUpperCase() : '';
@@ -73,12 +100,10 @@ function checkZoneAccess(request) {
     return { allowed: false, reasonCode: 'invalid_route' };
   }
 
-  // 쿼리로 기능을 고르는 요청 거부
   if (typeof request?.queryLength !== 'number' || request.queryLength !== 0) {
     return { allowed: false, reasonCode: 'query_not_allowed' };
   }
 
-  // 강사 자료 구역은 판정기에서 모두 거부
   if (
     INSTRUCTOR_SERVICES.has(service) ||
     INSTRUCTOR_PATH.test(path) ||
@@ -89,7 +114,6 @@ function checkZoneAccess(request) {
     return { allowed: false, reasonCode: 'instructor_zone_denied' };
   }
 
-  // 반 공지 구역: 읽기(GET)만 허용, 쓰기(POST·PUT·PATCH·DELETE)는 모두 거부
   const noticePathMatch = NOTICE_PATH.exec(path);
   const noticeRouteMatch = NOTICE_ROUTE.exec(route);
   if (NOTICE_SERVICES.has(service) || noticePathMatch || noticeRouteMatch) {
@@ -113,7 +137,6 @@ function checkZoneAccess(request) {
     return { allowed: true };
   }
 
-  // 메모 구역: 자료 ID 하나를 고르는 경로만 허용하고 ID 없는 전체 목록 경로는 거부
   if (NOTE_SERVICES.has(service)) {
     const notePathMatch = NOTE_ITEM_PATH.exec(path);
     const noteRouteMatch = NOTE_ITEM_ROUTE.exec(route);
@@ -132,7 +155,6 @@ function checkZoneAccess(request) {
     return { allowed: true };
   }
 
-  // 알 수 없는 서비스나 경로는 모두 거부
   return { allowed: false, reasonCode: 'unknown_zone_denied' };
 }
 
@@ -228,6 +250,16 @@ export async function decide(request) {
       decision: 'deny',
       reasonCode: 'device_not_registered',
       ruleIds: ['device_registered'],
+    };
+  }
+
+  if (isRevokedOrBurst(request)) {
+    return {
+      schema: 'aleph.decision.v1',
+      requestId,
+      decision: 'deny',
+      reasonCode: 'burst_read',
+      ruleIds: ['burst_read'],
     };
   }
 
