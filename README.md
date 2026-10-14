@@ -58,3 +58,11 @@
    - 반 공지 구역은 읽기(`GET`)만 허용하고 쓰기(`POST`·`PUT`·`PATCH`·`DELETE`)는 모두 거부합니다.
    - 강사 자료 구역 및 알 수 없는 경로는 모두 거부합니다.
 3. 서버 API(`api/memos.js`)에서도 클라이언트가 보낸 `role`이나 구역 값을 신뢰하지 않고 검증된 소유자와 구역 권한을 대조합니다.
+## 9단계: 도플갱어를 찾고 권한을 거둡니다
+
+### 대량 조회(`burst_read`) 탐지 및 회수 제안 확인
+1. 탐지기(`src/detect.mjs`)는 `docs/DETECT_EVENTS.md` 계약에 맞춰 각 사건에서 `at`, `method`, `identity.sub` 세 값만 읽습니다.
+2. 같은 `identity.sub`의 `GET` 사건이 어느 10분 구간에서든 120건을 넘을 때(121건 이상)만 `{ action: "propose_revocation", reasonCode: "burst_read", subject }`를 반환하고, 120건 이하·여러 사용자 분산·10분 밖으로 흩어진 조회는 `{ action: "observe" }`를 유지합니다.
+3. 로컬 가상 사건 연습 명령:
+   ```bash
+   npm run detect:test
