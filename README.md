@@ -39,3 +39,13 @@
 2. 아래 명령으로 판정기 테스트를 실행합니다:
    ```bash
    npm run decider:test
+## 7단계: 평소와 다른 접속은 다시 확인합니다
+
+### 가상 이상 접속 판정 및 재인증 확인 순서
+1. 판정기(`src/decider.mjs`)는 `request.signals`의 출처(`source`)와 `request.recentEvents`, `request.stepUp`을 검사합니다.
+2. 평소와 다른 시각·네트워크·지역 또는 대량 요청 신호가 들어오면 영구 차단(`deny`)하지 않고 `decision: "step_up"`, `reasonCode: "step_up_required"`, `ruleIds: ["step_up_required"]`를 반환합니다.
+3. 추가 인증이 완료된 요청(`stepUp.verified === true` 및 `authAgeSeconds` 0~900초 이내)은 `decision: "allow"`로 허용합니다.
+4. 아래 명령으로 가상 사건 연습을 확인합니다:
+   ```bash
+   npm run fixture:7
+   npm run decider:test
