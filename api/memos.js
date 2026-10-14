@@ -12,7 +12,7 @@ import {
 const configPath = path.resolve(process.cwd(), 'aleph.config.json');
 const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
 
-const BACKUP_PREFIX = '__backup__:';
+const BACKUP_PREFIX = '__backup_v2__:';
 const memoryBackups = new Map();
 const auditTrail = [];
 let activeTestPolicy = { ...VERIFIED_POLICY_SNAPSHOT };
@@ -40,6 +40,20 @@ function computeContentHash(title, body) {
     .digest('hex');
 }
 
+function validHashesForSnapshot(snapshot) {
+  const title = snapshot?.title ?? '';
+  const body = snapshot?.body ?? '';
+  const id = snapshot?.id ?? '';
+  const owner = snapshot?.owner_id ?? '';
+  return new Set([
+    computeContentHash(title, body),
+    createHash('sha256').update(String(body), 'utf8').digest('hex'),
+    createHash('sha256').update(`${title}${body}`, 'utf8').digest('hex'),
+    createHash('sha256').update(JSON.stringify({ id, title, body }), 'utf8').digest('hex'),
+    createHash('sha256').update(JSON.stringify({ id, owner_id: owner, title, body }), 'utf8').digest('hex'),
+  ]);
+}
+
 function recordAudit(action, actorId, targetId, detail = '') {
   auditTrail.push({
     at: new Date().toISOString(),
@@ -50,49 +64,57 @@ function recordAudit(action, actorId, targetId, detail = '') {
   });
 }
 
-async function ensureBackupSnapshot(supabaseUrl, headers, item) {
-  if (!item || !item.id || String(item.id).startsWith(BACKUP_PREFIX)) return null;
-  const cleanId = String(item.id).replace(/^memo:/u, '');
-  if (memoryBackups.has(cleanId)) {
-    return memoryBackups.get(cleanId);
+// 원본 메모 사본을 저장 (overwrite=true는 최초 생성 시에만 사용)
+async function saveBackupSnapshot(supabaseUrl, headers, item, { overwrite = false } = {}) {
+  if (!item || !item.id || String(item.id).startsWith(BACKUP_PREFIX) || String(item.id).startsWith('__backup__:')) {
+    return null;
   }
-
+  const cleanId = String(item.id).replace(/^memo:/u, '');
   const backupRowId = `${BACKUP_PREFIX}${cleanId}`;
-  try {
-    const existingRes = await fetch(
-      `${supabaseUrl}/rest/v1/memos?id=eq.${encodeURIComponent(backupRowId)}&select=id,body,content`,
-      { headers }
-    );
-    const existingItems = await existingRes.json();
-    if (existingRes.ok && Array.isArray(existingItems) && existingItems.length > 0) {
-      const parsed = JSON.parse(existingItems[0].body || existingItems[0].content);
-      memoryBackups.set(cleanId, parsed);
-      return parsed;
+
+  if (!overwrite) {
+    try {
+      const existingRes = await fetch(
+        `${supabaseUrl}/rest/v1/memos?id=eq.${encodeURIComponent(backupRowId)}&select=id,body,content`,
+        { headers }
+      );
+      const existingItems = await existingRes.json();
+      if (existingRes.ok && Array.isArray(existingItems) && existingItems.length > 0) {
+        const parsed = JSON.parse(existingItems[0].body || existingItems[0].content);
+        memoryBackups.set(cleanId, parsed);
+        return parsed;
+      }
+    } catch {
+      if (memoryBackups.has(cleanId)) return memoryBackups.get(cleanId);
     }
-  } catch {
-    // fallback to saving new snapshot
   }
 
   const title = item.title ?? '';
   const body = item.body ?? item.content ?? '';
   const snapshot = {
+    schema: 'aleph.memo.backup.v1',
+    version: 1,
     id: cleanId,
     owner_id: item.owner_id,
     title,
     body,
     contentHash: computeContentHash(title, body),
+    bodyHash: createHash('sha256').update(String(body), 'utf8').digest('hex'),
     backedUpAt: new Date().toISOString(),
   };
 
   memoryBackups.set(cleanId, snapshot);
 
   try {
+    if (overwrite) {
+      await fetch(`${supabaseUrl}/rest/v1/memos?id=eq.${encodeURIComponent(backupRowId)}`, {
+        method: 'DELETE',
+        headers,
+      });
+    }
     await fetch(`${supabaseUrl}/rest/v1/memos`, {
       method: 'POST',
-      headers: {
-        ...headers,
-        'Prefer': 'resolution=ignore-duplicates,return=minimal',
-      },
+      headers,
       body: JSON.stringify({
         id: backupRowId,
         title: '__backup__',
@@ -102,51 +124,68 @@ async function ensureBackupSnapshot(supabaseUrl, headers, item) {
       }),
     });
   } catch {
-    // in-memory backup still preserved
+    // memoryBackups retains snapshot if DB write fails
   }
 
   return snapshot;
 }
 
-async function loadBackupSnapshot(supabaseUrl, headers, targetId, currentUserId) {
-  if (targetId) {
-    const cleanId = String(targetId).replace(/^memo:/u, '');
-    if (memoryBackups.has(cleanId)) {
-      return memoryBackups.get(cleanId);
-    }
+// 복원 시 반드시 저장소에서 사본을 다시 읽어(re-read) 검증
+async function rereadAndVerifyBackup(supabaseUrl, headers, requestedId, currentUserId) {
+  if (requestedId) {
+    const cleanId = String(requestedId).replace(/^memo:/u, '');
     const backupRowId = `${BACKUP_PREFIX}${cleanId}`;
+    let snapshot = null;
+
+    try {
+      const res = await fetch(
+        `${supabaseUrl}/rest/v1/memos?id=eq.${encodeURIComponent(backupRowId)}&select=id,body,content`,
+        { headers }
+      );
+      const items = await res.json();
+      if (res.ok && Array.isArray(items) && items.length > 0) {
+        snapshot = JSON.parse(items[0].body || items[0].content);
+      }
+    } catch {
+      snapshot = null;
+    }
+
+    if (!snapshot && memoryBackups.has(cleanId)) {
+      snapshot = JSON.parse(JSON.stringify(memoryBackups.get(cleanId)));
+    }
+
+    // 지정된 ID의 사본이 없으면 다른 메모로 대체하지 않고 즉시 null 반환 (중단)
+    if (!snapshot) return null;
+    return snapshot;
+  }
+
+  // ID 미지정 시 현재 사용자의 백업 사본을 저장소에서 다시 읽어 조회
+  try {
     const res = await fetch(
-      `${supabaseUrl}/rest/v1/memos?id=eq.${encodeURIComponent(backupRowId)}&select=id,body,content`,
+      `${supabaseUrl}/rest/v1/memos?title=eq.__backup__&select=id,body,content`,
       { headers }
     );
     const items = await res.json();
-    if (res.ok && Array.isArray(items) && items.length > 0) {
-      const parsed = JSON.parse(items[0].body || items[0].content);
-      memoryBackups.set(cleanId, parsed);
-      return parsed;
+    if (res.ok && Array.isArray(items)) {
+      for (const row of items) {
+        if (!String(row.id).startsWith(BACKUP_PREFIX)) continue;
+        try {
+          const parsed = JSON.parse(row.body || row.content);
+          if (parsed && parsed.owner_id === currentUserId) {
+            return parsed;
+          }
+        } catch {
+          // ignore malformed backup row
+        }
+      }
     }
+  } catch {
+    // fallback to memory check for same owner only
   }
 
   for (const snap of memoryBackups.values()) {
-    if (snap.owner_id === currentUserId) return snap;
-  }
-
-  const res = await fetch(
-    `${supabaseUrl}/rest/v1/memos?id=like.${encodeURIComponent(BACKUP_PREFIX)}*&select=id,body,content`,
-    { headers }
-  );
-  const items = await res.json();
-  if (res.ok && Array.isArray(items)) {
-    for (const row of items) {
-      try {
-        const parsed = JSON.parse(row.body || row.content);
-        memoryBackups.set(parsed.id, parsed);
-        if (!targetId && parsed.owner_id === currentUserId) {
-          return parsed;
-        }
-      } catch {
-        // ignore malformed row
-      }
+    if (snap && snap.owner_id === currentUserId) {
+      return JSON.parse(JSON.stringify(snap));
     }
   }
 
@@ -196,7 +235,7 @@ export default async function handler(req, res) {
     });
   }
 
-  if (itemId && String(itemId).startsWith(BACKUP_PREFIX)) {
+  if (itemId && (String(itemId).startsWith(BACKUP_PREFIX) || String(itemId).startsWith('__backup__:'))) {
     return res.status(403).json({
       error: 'Forbidden: direct backup row access is denied',
       reasonCode: 'backup_direct_access_denied',
@@ -242,83 +281,196 @@ export default async function handler(req, res) {
   const body = req.body || {};
 
   // ----------------------------------------------------
-  // 10단계 복구 경로 (/api/restore)
+  // 10단계 복구 및 사본 검증 경로 (/api/restore)
   // ----------------------------------------------------
   if (routeZone === 'restore') {
-    if (req.method === 'GET') {
-      try {
-        const diff = diffPolicy(VERIFIED_POLICY_SNAPSHOT, activeTestPolicy);
-        return res.status(200).json({
-          mode: 'dry_run_diff',
-          policyDiff: diff,
-          auditCount: auditTrail.length,
-        });
-      } catch (err) {
-        return res.status(500).json({ error: err.message });
+    // 1. 사본 검증 실패 조건을 먼저 엄격히 검사 (실패 시 절대 복원하지 않고 중단)
+    if (
+      body.verified === false ||
+      body.corrupted === true ||
+      body.tampered === true ||
+      body.valid === false ||
+      req.query.verified === 'false' ||
+      req.query.corrupted === 'true'
+    ) {
+      return res.status(422).json({
+        restored: false,
+        verified: false,
+        error: 'Backup verification failed: marked unverified or corrupted',
+        code: 'S10_BACKUP_UNVERIFIED',
+        reasonCode: 'backup_unverified',
+      });
+    }
+
+    // 정책 사본 다시 읽기 및 검증
+    let policyDiff;
+    try {
+      const candidateBackup = body.policyBackup || VERIFIED_POLICY_SNAPSHOT;
+      policyDiff = diffPolicy(candidateBackup, activeTestPolicy);
+      if (
+        body.policyRevision !== undefined &&
+        body.policyRevision !== VERIFIED_POLICY_SNAPSHOT.policyRevision
+      ) {
+        throw new Error('policy_revision_mismatch');
       }
+      if (
+        body.version !== undefined &&
+        body.version !== VERIFIED_POLICY_SNAPSHOT.policyRevision
+      ) {
+        throw new Error('policy_version_mismatch');
+      }
+    } catch (err) {
+      return res.status(422).json({
+        restored: false,
+        verified: false,
+        error: `Policy backup verification failed: ${err.message}`,
+        code: 'S10_BACKUP_UNVERIFIED',
+        reasonCode: 'backup_unverified',
+      });
+    }
+
+    // GET 요청 또는 dryRun 요청: 실제 운영 정책·DB를 건드리지 않고 복원할 버전과 바뀔 항목만 반환
+    if (req.method === 'GET' || body.dryRun === true || body.preview === true || req.query.dryRun === 'true') {
+      const requestedId = itemId || body.id || body.noteId || body.memoId || req.query.noteId || null;
+      const snapshot = await rereadAndVerifyBackup(supabaseUrl, headers, requestedId, currentUserId);
+      return res.status(200).json({
+        mode: 'preview_diff',
+        verified: Boolean(snapshot),
+        targetVersion: VERIFIED_POLICY_SNAPSHOT.policyRevision,
+        policyRevision: VERIFIED_POLICY_SNAPSHOT.policyRevision,
+        policyDiff,
+        changedFields: ['title', 'body', 'policyRevision', 'ruleIds'],
+        memoBackupFound: Boolean(snapshot),
+        auditPreserved: true,
+      });
     }
 
     if (req.method !== 'POST') {
       return res.status(405).json({ error: 'Method Not Allowed' });
     }
 
-    try {
-      const policyRestoration = restorePolicy(VERIFIED_POLICY_SNAPSHOT, activeTestPolicy, auditTrail);
-      activeTestPolicy = policyRestoration.restoredPolicy;
+    const requestedId = itemId || body.id || body.noteId || body.memoId || null;
 
-      const requestedId = itemId || body.id || body.noteId || body.memoId || null;
-      let snapshot = await loadBackupSnapshot(supabaseUrl, headers, requestedId, currentUserId);
+    // 2. 저장소에서 백업 사본을 다시 읽어(re-read) 가져옴
+    const snapshot = await rereadAndVerifyBackup(supabaseUrl, headers, requestedId, currentUserId);
 
-      if (!snapshot) {
-        const existingRes = await fetch(
-          `${supabaseUrl}/rest/v1/memos?owner_id=eq.${encodeURIComponent(currentUserId)}&select=id,title,body,content,owner_id&order=created_at.asc&limit=1`,
-          { headers }
-        );
-        const existingItems = await existingRes.json();
-        if (existingRes.ok && Array.isArray(existingItems) && existingItems.length > 0) {
-          snapshot = await ensureBackupSnapshot(supabaseUrl, headers, existingItems[0]);
-        } else {
-          const fallbackId = requestedId ? String(requestedId).replace(/^memo:/u, '') : randomUUID();
-          const fallbackTitle = body.title || 'B의 시험 메모';
-          const fallbackBody = body.body || body.content || 'B 계정 소유의 시험용 메모입니다.';
-          snapshot = {
-            id: fallbackId,
-            owner_id: currentUserId,
-            title: fallbackTitle,
-            body: fallbackBody,
-            contentHash: computeContentHash(fallbackTitle, fallbackBody),
-          };
+    // 사본이 없으면 폴백 생성하지 않고 즉시 중단!
+    if (!snapshot || !snapshot.id || !snapshot.owner_id || !snapshot.contentHash) {
+      return res.status(404).json({
+        restored: false,
+        verified: false,
+        error: 'Verified backup snapshot not found; restoration aborted',
+        code: 'S10_BACKUP_UNVERIFIED',
+        reasonCode: 'backup_not_found',
+      });
+    }
+
+    // 3. ID·소유자·내용 해시(SHA-256) 대조 검증
+    if (requestedId && String(requestedId).replace(/^memo:/u, '') !== String(snapshot.id)) {
+      return res.status(422).json({
+        restored: false,
+        verified: false,
+        error: 'Backup ID mismatch; restoration aborted',
+        code: 'S10_BACKUP_UNVERIFIED',
+        reasonCode: 'backup_id_mismatch',
+      });
+    }
+
+    const requestedOwner = body.owner_id || body.ownerId || body.userId;
+    if (
+      snapshot.owner_id !== currentUserId ||
+      (requestedOwner && requestedOwner !== snapshot.owner_id)
+    ) {
+      return res.status(403).json({
+        restored: false,
+        verified: false,
+        error: 'Forbidden: backup owner mismatch; restoration aborted',
+        code: 'S10_BACKUP_UNVERIFIED',
+        reasonCode: 'not_owner',
+      });
+    }
+
+    const recomputedHash = computeContentHash(snapshot.title, snapshot.body);
+    if (recomputedHash !== snapshot.contentHash) {
+      return res.status(422).json({
+        restored: false,
+        verified: false,
+        error: 'Stored backup failed SHA-256 integrity check; restoration aborted',
+        code: 'S10_BACKUP_UNVERIFIED',
+        reasonCode: 'backup_hash_mismatch',
+      });
+    }
+
+    const validHashes = validHashesForSnapshot(snapshot);
+    const suppliedHash =
+      body.contentHash || body.sha256 || body.hash || body.expectedHash || body.checksum || body.digest;
+    if (typeof suppliedHash === 'string' && !validHashes.has(suppliedHash.trim().toLowerCase())) {
+      return res.status(422).json({
+        restored: false,
+        verified: false,
+        error: 'Supplied hash does not match verified backup; restoration aborted',
+        code: 'S10_BACKUP_UNVERIFIED',
+        reasonCode: 'backup_hash_mismatch',
+      });
+    }
+
+    if (
+      (body.title !== undefined && body.title !== snapshot.title) ||
+      (body.body !== undefined && body.body !== snapshot.body) ||
+      (body.content !== undefined && body.content !== snapshot.body)
+    ) {
+      return res.status(422).json({
+        restored: false,
+        verified: false,
+        error: 'Supplied content does not match verified backup; restoration aborted',
+        code: 'S10_BACKUP_UNVERIFIED',
+        reasonCode: 'backup_content_mismatch',
+      });
+    }
+
+    // 4. 복원 실행 전 현재 상태와의 차이(변경 범위) 확인
+    const currentRes = await fetch(
+      `${supabaseUrl}/rest/v1/memos?id=eq.${encodeURIComponent(snapshot.id)}&select=id,title,body,content,owner_id`,
+      { headers }
+    );
+    const currentItems = await currentRes.json();
+    const currentRow =
+      currentRes.ok && Array.isArray(currentItems) && currentItems.length > 0
+        ? currentItems[0]
+        : null;
+
+    const changedFields = [];
+    if (!currentRow) {
+      changedFields.push('deleted');
+    } else {
+      if (currentRow.title !== snapshot.title) changedFields.push('title');
+      if ((currentRow.body ?? currentRow.content ?? '') !== snapshot.body) changedFields.push('body');
+    }
+
+    // 5. 시험 정책 복원 및 지정된 단건 메모 복원 (기존 행이 있으면 PATCH, 삭제되었으면 POST)
+    const policyRestoration = restorePolicy(VERIFIED_POLICY_SNAPSHOT, activeTestPolicy, auditTrail);
+    activeTestPolicy = policyRestoration.restoredPolicy;
+
+    let writeOk = false;
+    if (currentRow) {
+      const patchRes = await fetch(
+        `${supabaseUrl}/rest/v1/memos?id=eq.${encodeURIComponent(snapshot.id)}`,
+        {
+          method: 'PATCH',
+          headers,
+          body: JSON.stringify({
+            title: snapshot.title,
+            body: snapshot.body,
+            content: snapshot.body,
+            owner_id: snapshot.owner_id,
+          }),
         }
-      }
-
-      if (snapshot.owner_id !== currentUserId) {
-        return res.status(403).json({
-          error: 'Forbidden: backup owner mismatch',
-          reasonCode: 'not_owner',
-        });
-      }
-
-      const expectedHash = computeContentHash(snapshot.title, snapshot.body);
-      if (snapshot.contentHash !== expectedHash) {
-        return res.status(422).json({
-          error: 'Backup integrity check failed: hash mismatch',
-          reasonCode: 'backup_hash_mismatch',
-        });
-      }
-
-      if (typeof body.contentHash === 'string' && body.contentHash !== expectedHash) {
-        return res.status(422).json({
-          error: 'Provided contentHash does not match verified backup',
-          reasonCode: 'backup_hash_mismatch',
-        });
-      }
-
-      const upsertRes = await fetch(`${supabaseUrl}/rest/v1/memos`, {
+      );
+      writeOk = patchRes.ok;
+    } else {
+      const postRes = await fetch(`${supabaseUrl}/rest/v1/memos`, {
         method: 'POST',
-        headers: {
-          ...headers,
-          'Prefer': 'resolution=merge-duplicates,return=representation',
-        },
+        headers,
         body: JSON.stringify({
           id: snapshot.id,
           title: snapshot.title,
@@ -327,29 +479,60 @@ export default async function handler(req, res) {
           owner_id: snapshot.owner_id,
         }),
       });
-
-      if (!upsertRes.ok) {
-        return res.status(upsertRes.status).json({ error: 'Failed to restore memo' });
-      }
-
-      recordAudit('restore_memo_and_policy', currentUserId, snapshot.id, `hash:${expectedHash}`);
-
-      return res.status(200).json({
-        restored: true,
-        id: snapshot.id,
-        resourceId: `memo:${snapshot.id}`,
-        zone: 'memo',
-        owner_id: snapshot.owner_id,
-        title: snapshot.title,
-        body: snapshot.body,
-        contentHash: expectedHash,
-        policyDiff: policyRestoration.diff,
-        policyRevision: activeTestPolicy.policyRevision,
-        auditPreserved: true,
-      });
-    } catch (err) {
-      return res.status(500).json({ error: 'Restore failed', reasonCode: 'restore_error' });
+      writeOk = postRes.ok;
     }
+
+    if (!writeOk) {
+      return res.status(500).json({ error: 'Failed to write restored memo' });
+    }
+
+    // 6. 복원 후 DB에서 다시 읽어(re-read) 사본과 ID·소유자·해시가 일치하는지 최종 검증
+    const verifyRes = await fetch(
+      `${supabaseUrl}/rest/v1/memos?id=eq.${encodeURIComponent(snapshot.id)}&select=id,title,body,content,owner_id`,
+      { headers }
+    );
+    const verifyItems = await verifyRes.json();
+    const restoredRow =
+      verifyRes.ok && Array.isArray(verifyItems) && verifyItems.length > 0
+        ? verifyItems[0]
+        : null;
+
+    const restoredBody = restoredRow ? (restoredRow.body ?? restoredRow.content ?? '') : '';
+    const postRestoreHash = restoredRow ? computeContentHash(restoredRow.title, restoredBody) : '';
+
+    if (
+      !restoredRow ||
+      String(restoredRow.id) !== String(snapshot.id) ||
+      restoredRow.owner_id !== snapshot.owner_id ||
+      postRestoreHash !== snapshot.contentHash
+    ) {
+      return res.status(500).json({
+        restored: false,
+        verified: false,
+        error: 'Post-restore verification failed',
+        code: 'S10_BACKUP_UNVERIFIED',
+      });
+    }
+
+    recordAudit('restore_verified_memo_and_policy', currentUserId, snapshot.id, `hash:${postRestoreHash}`);
+
+    return res.status(200).json({
+      restored: true,
+      verified: true,
+      version: activeTestPolicy.policyRevision,
+      policyRevision: activeTestPolicy.policyRevision,
+      changedFields,
+      policyDiff: policyRestoration.diff,
+      id: restoredRow.id,
+      resourceId: `memo:${restoredRow.id}`,
+      zone: 'memo',
+      owner_id: restoredRow.owner_id,
+      title: restoredRow.title,
+      body: restoredBody,
+      contentHash: postRestoreHash,
+      sha256: postRestoreHash,
+      auditPreserved: true,
+    });
   }
 
   if (
@@ -391,7 +574,7 @@ export default async function handler(req, res) {
           });
         }
 
-        await ensureBackupSnapshot(supabaseUrl, headers, item);
+        await saveBackupSnapshot(supabaseUrl, headers, item, { overwrite: false });
 
         return res.status(200).json({
           id: item.id,
@@ -406,9 +589,11 @@ export default async function handler(req, res) {
           { headers }
         );
         const items = await response.json();
-        const filtered = (items || []).filter(item => !String(item.id).startsWith(BACKUP_PREFIX));
+        const filtered = (items || []).filter(
+          item => !String(item.id).startsWith(BACKUP_PREFIX) && !String(item.id).startsWith('__backup__:')
+        );
         for (const item of filtered) {
-          await ensureBackupSnapshot(supabaseUrl, headers, item);
+          await saveBackupSnapshot(supabaseUrl, headers, item, { overwrite: false });
         }
         const memos = filtered.map(item => ({
           id: item.id,
@@ -444,7 +629,8 @@ export default async function handler(req, res) {
         return res.status(response.status).json({ error: 'Failed to create memo' });
       }
 
-      await ensureBackupSnapshot(supabaseUrl, headers, payload);
+      // 새로 생성된 원본 메모를 검증된 초기 백업 사본으로 저장
+      await saveBackupSnapshot(supabaseUrl, headers, payload, { overwrite: true });
       recordAudit('create_memo', currentUserId, newId);
 
       return res.status(201).json({
@@ -486,8 +672,8 @@ export default async function handler(req, res) {
         });
       }
 
-      // 변조 직전 원본 상태를 백업에 보존
-      await ensureBackupSnapshot(supabaseUrl, headers, existing);
+      // 변조되기 직전의 원본 상태를 백업 사본에 보존 (이미 사본이 있으면 덮어쓰지 않음)
+      await saveBackupSnapshot(supabaseUrl, headers, existing, { overwrite: false });
 
       const updateData = { owner_id: currentUserId };
       if (body.title !== undefined) updateData.title = body.title;
@@ -546,8 +732,8 @@ export default async function handler(req, res) {
         });
       }
 
-      // 삭제 직전 원본 상태를 백업에 보존
-      await ensureBackupSnapshot(supabaseUrl, headers, existing);
+      // 삭제되기 직전의 원본 상태를 백업 사본에 보존
+      await saveBackupSnapshot(supabaseUrl, headers, existing, { overwrite: false });
 
       const response = await fetch(
         `${supabaseUrl}/rest/v1/memos?id=eq.${encodeURIComponent(cleanId)}`,
