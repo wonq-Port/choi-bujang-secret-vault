@@ -709,7 +709,7 @@ export default async function handler(req, res) {
       });
     }
 
-    // 5. 복원 실행 전 변경 항목(diff) 산출
+    // 5. 복원 실행 전 변경 항목(diff) 산출 (단건 메모 복원 전용, 정책·규칙 변경 없음)
     const existingTarget = normalDbRows.find((r) => String(r.id) === String(snapshot.id));
     const memoChangedFields = [];
     if (!existingTarget) {
@@ -727,13 +727,7 @@ export default async function handler(req, res) {
       }
     }
 
-    currentTestPolicy = {
-      version: VERIFIED_POLICY_BACKUP.version,
-      policyRevision: VERIFIED_POLICY_BACKUP.policyRevision,
-      rules: { ...VERIFIED_POLICY_BACKUP.rules },
-    };
-
-    // 6. 지정된 단 한 건의 메모만 복원 (다른 메모는 절대 건드리지 않음)
+    // 6. 지정된 단 한 건의 메모만 복원 (다른 메모·정책·규칙은 절대 건드리지 않음)
     if (existingTarget) {
       const patchRes = await fetch(
         `${supabaseUrl}/rest/v1/memos?id=eq.${encodeURIComponent(snapshot.id)}`,
@@ -768,7 +762,7 @@ export default async function handler(req, res) {
       }
     }
 
-    // 7. 복원 직후 DB에서 다시 읽어 ID·소유자·내용 해시 일치 검증
+    // 7. 복원 직후 DB에서 다시 읽어 ID·owner_id·내용 SHA-256 일치 검증
     const verifyRes = await fetch(
       `${supabaseUrl}/rest/v1/memos?id=eq.${encodeURIComponent(snapshot.id)}&select=id,title,body,content,owner_id`,
       { headers }
@@ -792,17 +786,14 @@ export default async function handler(req, res) {
       });
     }
 
-    const allChangedFields = Array.from(
-      new Set([...memoChangedFields, ...policyDiff.changedFields])
-    );
-
     recordAudit({
       action: 'RESTORE_MEMO',
       targetId: snapshot.id,
       owner_id: snapshot.owner_id,
+      contentSha256: restoredHash,
       contentHash: restoredHash,
       version: snapshot.version,
-      changedFields: allChangedFields,
+      changedFields: memoChangedFields,
       decision: 'allow',
       reasonCode: 'verified_backup_restored',
     });
@@ -813,15 +804,16 @@ export default async function handler(req, res) {
       verified: true,
       reReadVerified: true,
       version: snapshot.version,
-      policyRevision: currentTestPolicy.policyRevision,
       id: restoredItem.id,
       owner_id: restoredItem.owner_id,
       title: restoredItem.title,
       body: restoredItem.body || restoredItem.content || '',
+      contentSha256: restoredHash,
       contentHash: restoredHash,
-      changedFields: allChangedFields,
+      changedFields: memoChangedFields,
       memoChangedFields,
-      changes: policyDiff.changes,
+      policyChanged: false,
+      rulesPreserved: true,
       productionUntouched: true,
       productionPolicyUntouched: true,
       auditPreserved: true,
