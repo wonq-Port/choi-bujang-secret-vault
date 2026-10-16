@@ -1,14 +1,8 @@
 {
   "rewrites": [
-    { "source": "/api/restore/:id", "destination": "/api/memos?zone=restore&id=:id" },
-    { "source": "/api/restore", "destination": "/api/memos?zone=restore" },
-    { "source": "/api/memos/:id", "destination": "/api/memos?zone=memos&id=:id" },
-    { "source": "/api/notes/:id", "destination": "/api/memos?zone=notes&id=:id" },
-    { "source": "/api/notes", "destination": "/api/memos?zone=notes" },
-    { "source": "/api/notices/:id", "destination": "/api/memos?zone=notices&id=:id" },
-    { "source": "/api/notices", "destination": "/api/memos?zone=notices" },
-    { "source": "/api/instructor/:id", "destination": "/api/memos?zone=instructor&id=:id" },
-    { "source": "/api/instructor", "destination": "/api/memos?zone=instructor" }
+    { "source": "/api/device", "destination": "/api/memos?action=device" },
+    { "source": "/api/restore", "destination": "/api/memos?action=restore" },
+    { "source": "/api/memos/:id", "destination": "/api/memos?id=:id" }
   ],
   "headers": [
     {
