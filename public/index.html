@@ -3,7 +3,9 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>BYTE BACK | 보호된 자료실</title>
+  <meta name="theme-color" content="#8ad8df">
+  <link rel="manifest" href="/manifest.json">
+  <title>BYTE BACK | 보호된 자료실 접속 앱</title>
   <style>
     :root { color-scheme: dark; font-family: system-ui, sans-serif; }
     body { margin: 0; min-height: 100vh; background: #101a28; color: #ecf4ff; }
@@ -12,6 +14,11 @@
     h1 { margin: 16px 0; font-size: clamp(30px, 7vw, 48px); line-height: 1.2; }
     p { font-size: 17px; line-height: 1.7; color: #bfd0e5; }
     .card { margin: 20px 0; padding: 18px; border: 1px solid #51667c; border-radius: 14px; background: #1a2a3d; }
+    .badge { display: inline-block; padding: 4px 10px; border-radius: 999px; font-size: 13px; font-weight: 700; }
+    .badge.pending { background: #3d2a1a; color: #ffb86c; border: 1px solid #ffb86c; }
+    .badge.approved { background: #173b34; color: #8ad8df; border: 1px solid #8ad8df; }
+    .notice-box { font-size: 14px; color: #bfd0e5; margin-top: 10px; line-height: 1.6; }
+    .offline-banner { display: none; margin: 16px 0; padding: 14px 16px; border-radius: 10px; border: 1px solid #ff6b81; background: #2c1a24; color: #ffd6dc; font-size: 14px; }
     ul { list-style: none; display: grid; gap: 12px; padding: 0; }
     li { border: 1px solid #51667c; border-radius: 14px; padding: 17px 19px; background: #1a2a3d; display: flex; justify-content: space-between; align-items: flex-start; }
     .memo-text { flex-grow: 1; }
@@ -26,9 +33,33 @@
 </head>
 <body>
   <main>
-    <div class="eyebrow">BYTE BACK · 5단계 서버 집중화</div>
-    <h1>보호된 자료실</h1>
-    <p>모든 데이터와 인증 요청이 서버를 통해서만 안전하게 처리됩니다.</p>
+    <div class="eyebrow">BYTE BACK · 11단계 나만의 접속 앱</div>
+    <h1>BYTE BACK 보호된 자료실 접속 앱</h1>
+    <p>설치형 웹앱(PWA) 화면과 서버·판정기 기반 기기 승인 및 요청 서명 흐름으로 보호되는 자료실입니다.</p>
+
+    <!-- 오프라인 안내 영역 -->
+    <div id="offline-banner" class="offline-banner" role="status" aria-live="polite">
+      오프라인 안내: 현재 네트워크에 연결되어 있지 않습니다. 이 앱은 보호 자료나 기기 키·토큰을 오프라인에 보관하지 않으므로, 온라인 연결 후 서버와 판정기의 기기 승인 확인을 거쳐야 자료실을 열 수 있습니다.
+    </div>
+
+    <!-- 설치형 웹앱 안내 및 기기 승인 상태 표시 카드 (제작 1 & 제작 2) -->
+    <div id="device-status-card" class="card">
+      <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+        <strong>기기 승인 상태</strong>
+        <span id="device-approval-badge" class="badge pending">미승인 · 승인 전 보호 자료 비공개</span>
+      </div>
+      <p class="notice-box" style="margin-bottom: 8px;">
+        • <strong>주의</strong>: 홈 화면이나 데스크톱에 웹앱을 설치했다는 표시(manifest)만으로 기기 확인이 끝난 것으로 인정하지 않습니다.<br>
+        • <strong>오프라인 및 보안 안내</strong>: 오프라인 상태에서는 보호 자료를 열람하거나 캐시하지 않으며, 기기 개인키와 인증 토큰은 브라우저 저장소에 저장하지 않고 메모리에서만 일회성으로 운용합니다.
+      </p>
+      <div id="device-approval-controls" style="display: none; margin-top: 12px; padding-top: 12px; border-top: 1px solid #51667c;">
+        <p class="notice-box" style="margin-top: 0;">
+          로그인되었습니다. 보호 자료실을 열려면 서버와 판정기에 이 기기의 등록·승인 확인을 요청하세요. 승인 전에는 보호 자료를 불러오거나 표시하지 않습니다.
+        </p>
+        <button type="button" id="request-approval-btn" class="primary">서버에 기기 승인 요청</button>
+        <div id="device-approval-result" class="notice-box" style="margin-top: 8px;"></div>
+      </div>
+    </div>
 
     <!-- 1. 인증 영역 -->
     <div id="auth-container" class="card">
@@ -48,7 +79,7 @@
       </div>
     </div>
 
-    <!-- 2. 메모 작성 영역 -->
+    <!-- 2. 메모 작성 영역 (서버가 기기 승인을 확인한 뒤에만 표시) -->
     <div id="create-container" class="card" style="display: none;">
       <h3 style="margin-top: 0;">새 가상 메모 추가</h3>
       <form id="create-form" style="display: grid; gap: 10px;">
@@ -60,14 +91,13 @@
       </form>
     </div>
 
-    <!-- 3. 메모 목록 -->
+    <!-- 3. 메모 목록 (기기 승인 전에는 보호 자료를 일절 표시하지 않음) -->
     <ul id="notes" aria-live="polite">
-      <li>로그인 후 가상 자료를 확인할 수 있습니다.</li>
+      <li>로그인 및 서버 기기 승인 완료 후 가상 자료를 확인할 수 있습니다.</li>
     </ul>
   </main>
 
   <script type="module">
-    // 화면에 Supabase 키나 SDK가 전혀 존재하지 않음!
     const list = document.querySelector('#notes');
     const loggedOutView = document.getElementById('logged-out-view');
     const loggedInView = document.getElementById('logged-in-view');
@@ -77,23 +107,162 @@
     const logoutBtn = document.getElementById('logout-btn');
     const createContainer = document.getElementById('create-container');
     const createForm = document.getElementById('create-form');
+    const offlineBanner = document.getElementById('offline-banner');
+    const approvalBadge = document.getElementById('device-approval-badge');
+    const approvalControls = document.getElementById('device-approval-controls');
+    const requestApprovalBtn = document.getElementById('request-approval-btn');
+    const approvalResult = document.getElementById('device-approval-result');
 
+    // 모든 인증 토큰과 기기 서명 키는 메모리 변수로만 유지 (브라우저 저장소 절대 미사용)
     let currentToken = null;
     let currentUser = null;
+    let deviceApproved = false;
+    let approvedDeviceId = null;
+    let memorySigningKeyPair = null;
 
-    // 1. 메모 로드
-    async function loadMemos() {
+    function updateOfflineBanner() {
+      if (!navigator.onLine) {
+        offlineBanner.style.display = 'block';
+        createContainer.style.display = 'none';
+        list.innerHTML = '<li>오프라인 상태입니다. 보호 자료는 오프라인에 표시되지 않습니다.</li>';
+      } else {
+        offlineBanner.style.display = 'none';
+      }
+    }
+    window.addEventListener('online', updateOfflineBanner);
+    window.addEventListener('offline', updateOfflineBanner);
+    updateOfflineBanner();
+
+    function bufferToHex(buf) {
+      return Array.from(new Uint8Array(buf))
+        .map((b) => b.toString(16).padStart(2, '0'))
+        .join('');
+    }
+
+    function bufferToBase64Url(buf) {
+      let binary = '';
+      const bytes = new Uint8Array(buf);
+      for (let i = 0; i < bytes.byteLength; i++) {
+        binary += String.fromCharCode(bytes[i]);
+      }
+      return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
+    }
+
+    async function sha256HexBrowser(text) {
+      const encoded = new TextEncoder().encode(String(text ?? ''));
+      const digest = await window.crypto.subtle.digest('SHA-256', encoded);
+      return bufferToHex(digest);
+    }
+
+    // 요청 경로(method, path)와 수정 본문(bodySha256)을 묶어 전자서명 생성
+    async function signedFetch(path, options = {}) {
+      if (!currentToken || !deviceApproved || !memorySigningKeyPair || !approvedDeviceId) {
+        throw new Error('서버 기기 승인이 완료되지 않아 보호 요청을 보낼 수 없습니다.');
+      }
+      const method = String(options.method || 'GET').toUpperCase();
+      const rawBody = options.body ? String(options.body) : '';
+      const bodyHash = await sha256HexBrowser(rawBody);
+      const signedAt = new Date().toISOString();
+      const canonical = `${method}\n${path}\n${bodyHash}\n${signedAt}`;
+
+      const sigBuffer = await window.crypto.subtle.sign(
+        { name: 'ECDSA', hash: 'SHA-256' },
+        memorySigningKeyPair.privateKey,
+        new TextEncoder().encode(canonical)
+      );
+      const signature = bufferToBase64Url(sigBuffer);
+
+      const mergedHeaders = {
+        ...(options.headers || {}),
+        Authorization: `Bearer ${currentToken}`,
+        'X-Device-Id': approvedDeviceId,
+        'X-Device-Signature': signature,
+        'X-Signed-Method': method,
+        'X-Signed-Path': path,
+        'X-Signed-Body-Sha256': bodyHash,
+        'X-Signed-At': signedAt,
+      };
+
+      return fetch(path, {
+        ...options,
+        method,
+        headers: mergedHeaders,
+        cache: 'no-store',
+      });
+    }
+
+    function resetApprovalState() {
+      deviceApproved = false;
+      approvedDeviceId = null;
+      memorySigningKeyPair = null;
+      approvalBadge.className = 'badge pending';
+      approvalBadge.textContent = '미승인 · 승인 전 보호 자료 비공개';
+      approvalResult.textContent = '';
+      createContainer.style.display = 'none';
+      list.innerHTML = '<li>로그인 및 서버 기기 승인 완료 후 가상 자료를 확인할 수 있습니다.</li>';
+    }
+
+    // 서버 및 판정기에 기기 승인 요청 (승인 버튼만으로 로컬 권한을 부여하지 않고 반드시 서버 검증 응답을 확인)
+    requestApprovalBtn.addEventListener('click', async () => {
       if (!currentToken) {
-        list.innerHTML = '<li>로그인 후 가상 자료를 확인할 수 있습니다.</li>';
+        approvalResult.textContent = '먼저 로그인해 주세요.';
+        return;
+      }
+      requestApprovalBtn.disabled = true;
+      approvalResult.textContent = '서버와 판정기에 기기 등록·승인 확인 및 서명 키 등록을 요청하는 중...';
+
+      try {
+        memorySigningKeyPair = await window.crypto.subtle.generateKey(
+          { name: 'ECDSA', namedCurve: 'P-256' },
+          false,
+          ['sign', 'verify']
+        );
+        const publicKeyJwk = await window.crypto.subtle.exportKey('jwk', memorySigningKeyPair.publicKey);
+
+        const res = await fetch('/api/device', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${currentToken}`,
+          },
+          body: JSON.stringify({ publicKeyJwk }),
+          cache: 'no-store',
+        });
+
+        const data = await res.json();
+        if (!res.ok || data.approved !== true || data.deviceRegistered !== true || !data.deviceId) {
+          resetApprovalState();
+          approvalControls.style.display = 'block';
+          approvalResult.textContent = `기기 승인 거부됨: ${data.error || data.reasonCode || '등록 기기 확인 실패'}`;
+          return;
+        }
+
+        deviceApproved = true;
+        approvedDeviceId = data.deviceId;
+        approvalBadge.className = 'badge approved';
+        approvalBadge.textContent = `승인됨 · 등록 기기 확인 완료 (${approvedDeviceId.slice(0, 8)})`;
+        approvalResult.textContent = `서버·판정기 승인 완료 (결정: ${data.decision}, 규칙: ${(data.ruleIds || []).join(', ')})`;
+        createContainer.style.display = 'block';
+        await loadMemos();
+      } catch (err) {
+        resetApprovalState();
+        approvalControls.style.display = 'block';
+        approvalResult.textContent = '기기 승인 서버 통신 오류가 발생했습니다.';
+      } finally {
+        requestApprovalBtn.disabled = false;
+      }
+    });
+
+    // 1. 메모 로드 (서버 기기 승인이 완료된 경우에만 호출 및 표시)
+    async function loadMemos() {
+      if (!currentToken || !deviceApproved) {
+        createContainer.style.display = 'none';
+        list.innerHTML = '<li>로그인 및 서버 기기 승인 완료 후 가상 자료를 확인할 수 있습니다.</li>';
         return;
       }
 
       try {
-        const response = await fetch('/api/memos', {
-          headers: { 'Authorization': `Bearer ${currentToken}` },
-          cache: 'no-store'
-        });
-
+        const response = await signedFetch('/api/memos', { method: 'GET' });
         if (!response.ok) throw new Error('자료를 불러올 수 없습니다.');
         const data = await response.json();
         const memos = Array.isArray(data) ? data : (data.notes || []);
@@ -103,7 +272,7 @@
           return;
         }
 
-        list.replaceChildren(...memos.map(note => {
+        list.replaceChildren(...memos.map((note) => {
           const item = document.createElement('li');
           const textDiv = document.createElement('div');
           textDiv.className = 'memo-text';
@@ -134,22 +303,20 @@
       }
     }
 
-    // 2. 메모 추가
+    // 2. 메모 추가 (서명 포함)
     createForm.addEventListener('submit', async (e) => {
       e.preventDefault();
-      if (!currentToken) return;
+      if (!currentToken || !deviceApproved) return;
 
       const title = document.getElementById('new-title').value;
       const body = document.getElementById('new-body').value;
+      const payloadStr = JSON.stringify({ title, body });
 
       try {
-        const res = await fetch('/api/memos', {
+        const res = await signedFetch('/api/memos', {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${currentToken}`
-          },
-          body: JSON.stringify({ title, body })
+          headers: { 'Content-Type': 'application/json' },
+          body: payloadStr,
         });
         if (res.ok) {
           createForm.reset();
@@ -157,57 +324,57 @@
         } else {
           alert('메모 추가 실패');
         }
-      } catch (err) {
-        alert('네트워크 오류');
+      } catch {
+        alert('네트워크 또는 서명 오류');
       }
     });
 
-    // 3. 메모 수정
+    // 3. 메모 수정 (경로 + 수정 본문 해시 서명 포함)
     async function updateMemo(id, oldTitle, oldBody) {
+      if (!currentToken || !deviceApproved) return;
       const newTitle = prompt('수정할 제목:', oldTitle);
       if (newTitle === null) return;
       const newBody = prompt('수정할 내용:', oldBody);
       if (newBody === null) return;
 
+      const payloadStr = JSON.stringify({ title: newTitle, body: newBody });
+
       try {
-        const res = await fetch(`/api/memos/${id}`, {
+        const res = await signedFetch(`/api/memos/${id}`, {
           method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${currentToken}`
-          },
-          body: JSON.stringify({ title: newTitle, body: newBody })
+          headers: { 'Content-Type': 'application/json' },
+          body: payloadStr,
         });
         if (res.ok) {
           loadMemos();
         } else {
           alert('메모 수정 실패');
         }
-      } catch (err) {
-        alert('네트워크 오류');
+      } catch {
+        alert('네트워크 또는 서명 오류');
       }
     }
 
-    // 4. 메모 삭제
+    // 4. 메모 삭제 (경로 서명 포함)
     async function deleteMemo(id) {
+      if (!currentToken || !deviceApproved) return;
       if (!confirm('정말 삭제하시겠습니까?')) return;
 
       try {
-        const res = await fetch(`/api/memos/${id}`, {
+        const res = await signedFetch(`/api/memos/${id}`, {
           method: 'DELETE',
-          headers: { 'Authorization': `Bearer ${currentToken}` }
         });
         if (res.ok) {
           loadMemos();
         } else {
           alert('메모 삭제 실패');
         }
-      } catch (err) {
-        alert('네트워크 오류');
+      } catch {
+        alert('네트워크 또는 서명 오류');
       }
     }
 
-    // 5. 로그인 (서버 함수 /api/login 호출)
+    // 5. 로그인 (로그인 직후에는 아직 기기 미승인 상태이므로 보호 자료를 표시하지 않고 기기 승인 요청 화면을 노출)
     loginForm.addEventListener('submit', async (e) => {
       e.preventDefault();
       authError.textContent = '';
@@ -218,7 +385,7 @@
         const res = await fetch('/api/login', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email, password })
+          body: JSON.stringify({ email, password }),
         });
 
         const data = await res.json();
@@ -229,26 +396,26 @@
 
         currentToken = data.access_token;
         currentUser = data.user;
+        resetApprovalState();
 
         loggedOutView.style.display = 'none';
         loggedInView.style.display = 'flex';
-        createContainer.style.display = 'block';
-        userDisplay.textContent = `${currentUser.email} 님 접속 중`;
-        loadMemos();
-      } catch (err) {
+        approvalControls.style.display = 'block';
+        userDisplay.textContent = `${currentUser.email} 님 접속 중 (기기 승인 대기)`;
+      } catch {
         authError.textContent = '로그인 서버 연결 오류';
       }
     });
 
-    // 6. 로그아웃
+    // 6. 로그아웃 (메모리 내 토큰·키 즉시 파기)
     logoutBtn.addEventListener('click', () => {
       currentToken = null;
       currentUser = null;
+      resetApprovalState();
       loggedOutView.style.display = 'block';
       loggedInView.style.display = 'none';
-      createContainer.style.display = 'none';
+      approvalControls.style.display = 'none';
       document.getElementById('auth-password').value = '';
-      loadMemos();
     });
   </script>
 </body>
