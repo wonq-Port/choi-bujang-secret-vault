@@ -111,3 +111,36 @@
   1. **설치형 앱 서명 없는 보호 요청 (`대구두꺼운만두`)**: 서명(`X-Device-Signature`) 없이 보내는 보호 요청 거부
   2. **서명 뒤 요청 경로 변경 (`호박엿장수마음대로`)**: 서명 당시 경로(`X-Signed-Path`)와 실제 요청 경로가 다른 요청 거부
   3. **서명 뒤 수정 본문 변경 (`부산돼지미역국밥`)**: 서명 당시 본문 SHA-256(`X-Signed-Body-Sha256`)과 실제 수정 본문의 SHA-256이 다른 요청 거부
+
+## 12단계: 탈환 작전실을 완성합니다
+
+### 1. 제공 엔진(ALEPH SDP 엔진) 출처 및 학생 구현 범위 구분 (제작 3)
+- **제공 엔진 출처 (`ALEPH SDP 엔진` 사용)**:
+  - 판정기 요청·응답 18개 필드 계약(`aleph.decision.v1`, `docs/DECIDER_REQUEST.md`), 9단계 탐지 연습 사건 계약(`docs/DETECT_EVENTS.md`), 배포 식별 검증(`scripts/deployment-identity.mjs`), 로그인 토큰 검증 기본 틀(`src/verify-login.mjs`)은 수업에서 제공된 **`ALEPH SDP 엔진`(`ChoiTimo/aleph-defense-starter`)**을 사용합니다.
+- **학생 구현 범위**:
+  - **학생 판정기 (`src/decider.mjs`)**: `RULE_IDS`(`starter.deny`, `device_registered`, `step_up_required`) 및 18개 계약 필드만 읽는 기기 등록·복합 이상 접속(`step_up`) 판정 규칙 구현
+  - **탐지 규칙 (`src/detect.mjs`)**: 동일 주체(`identity.sub`)의 10분 내 `GET` 조회 120건 초과 시 `propose_revocation`(`burst_read`) 반환 규칙 구현
+  - **설치형 접속 앱 및 탈환 작전실 (`public/index.html`, `public/manifest.json`)**: PWA 매니페스트, 오프라인 안내, 서버 기기 승인 요청, 메모리 전용 Web Crypto ECDSA 요청 서명, 그리고 실제 API 응답 기반 탈환 작전실 화면 구현
+  - **보호 자료실·회수·단건 복구·작전실 서버 (`api/login.js`, `api/memos.js`)**: 서버 집중화 인증, 소유자 구역 분리(`owner_id`), 강사 공지 보호, 신원·세션 회수(`/api/revoke`), 사전 백업 단건 메모 복원(`/api/restore`), 기기 승인·서명 검증(`/api/device`), 가린 서버 기록 및 작전실 요약 조회(`/api/ops`) 구현
+
+### 2. 탈환 작전실 요약 및 가린 서버 기록 대조 (제작 1)
+- **조회 경로**: `GET /api/ops` (및 첫 화면 상단 **탈환 작전실** 카드)
+- **표시 항목**:
+  1. **판정기 규칙**: `src/decider.mjs`의 실제 `RULE_IDS` 목록과 규칙 수 표시
+  2. **탐지 사건**: 실시간 조회 사건 누적 수와 폭주 탐지 상태(`확인됨` / `미실행`) 표시
+  3. **회수 상태**: 회수된 신원·토큰·세션 수와 활성 여부(`회수 활성` / `미실행`) 표시
+  4. **복구 버전**: 사전 검증된 백업 버전(`v1.0-verified`, `policyRevision: 1`), 백업 건수, 복원 실행 여부(`복원 확인됨` / `미실행`) 표시
+- **가상 메모 본문 비표시 원칙**: 서버 감사 기록(`auditLogs`)과 작전실 화면 어디에도 가상 메모의 본문(`body`/`content`/`title`)이나 비밀값·토큰은 포함하지 않으며(`memoBodyIncluded: false`, `bodyRedacted: true`), 화면의 허용·거부·회수 수치와 서버의 가린 기록이 1:1로 일치합니다.
+
+### 3. 1~11단계 정상·금지 요청 실측 표 절차 및 41종 시험 실행/미실행 구분 (제작 2)
+1. 첫 화면의 탈환 작전실에서 **「1~11단계 실측 점검 실행」** 버튼을 누르면 브라우저가 실제 API(`/data.json`, `/api/memos`, `/api/device`, `/api/restore`)에 정상 요청과 금지 요청을 전송합니다.
+2. 각 응답에서 서버가 발급한 **`요청 ID`(`requestId`)**, **`확인 시각`(`checkedAt`)**, **실제 HTTP 상태 코드(`observed`)**를 읽어 기대 결과(`expected`)와 함께 한 표로 기록합니다.
+3. 전체 41종 시험 가운데 실제로 API를 호출해 확인한 항목만 실측 결과(거부/허용)로 표시하고, 아직 실행하지 않은 시험 항목은 임의로 통과 처리하지 않고 **`미실행`**으로 남깁니다.
+
+### 4. 학생 판정기·탐지 규칙·접속 앱·자료실의 설치·실행·중지·복구 안내 (제작 3)
+- **비밀값 취급 원칙**: 비밀번호, 토큰, 기기 개인키, `SUPABASE_SECRET_KEY` 등 비밀값은 코드·Git·README·제출 묶음에 절대 포함하거나 포장하지 않으며, 배포 서버(Vercel)의 환경변수 설정란에만 등록합니다.
+- **설치 (Install)**:
+  ```bash
+  git clone [https://github.com/wonq-Port/choi-bujang-secret-vault.git](https://github.com/wonq-Port/choi-bujang-secret-vault.git)
+  cd choi-bujang-secret-vault
+  npm install
