@@ -1,5 +1,6 @@
 {
   "rewrites": [
+    { "source": "/api/ops", "destination": "/api/memos?action=ops" },
     { "source": "/api/device", "destination": "/api/memos?action=device" },
     { "source": "/api/restore", "destination": "/api/memos?action=restore" },
     { "source": "/api/memos/:id", "destination": "/api/memos?id=:id" }
