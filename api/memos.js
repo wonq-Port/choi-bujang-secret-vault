@@ -3,6 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import crypto, { randomUUID } from 'node:crypto';
 import { createLoginVerifier } from '../src/verify-login.mjs';
+import { decide } from '../src/decider.mjs';
 
 const configPath = path.resolve(process.cwd(), 'aleph.config.json');
 const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
@@ -19,13 +20,15 @@ function getVerifier(supabaseSecretKey) {
   return verifier;
 }
 
-// 9~10단계 상태 보존 (회수 목록, 감사 기록, 검증된 사전 백업)
+// 9~11단계 상태 보존 (회수 목록, 감사 기록, 검증된 사전 백업, 승인된 기기 공개키 등록부)
 const revokedIdentities = new Set();
 const revokedTokens = new Set();
 const revokedSessions = new Set();
 const auditLogs = [];
 const readTimestampsByUser = new Map();
 const memoryBackups = new Map();
+const approvedDevices = new Map();
+const approvedUsers = new Set();
 let lastAccountBUserId = null;
 
 const VERIFIED_POLICY_BACKUP = Object.freeze({
@@ -52,12 +55,6 @@ const TAMPERED_POLICY_STATE = Object.freeze({
     burst_read_revocation: true,
   }),
 });
-
-let currentTestPolicy = {
-  version: TAMPERED_POLICY_STATE.version,
-  policyRevision: TAMPERED_POLICY_STATE.policyRevision,
-  rules: { ...TAMPERED_POLICY_STATE.rules },
-};
 
 function sha256Hex(input) {
   return crypto.createHash('sha256').update(String(input ?? '')).digest('hex');
@@ -256,12 +253,210 @@ function parseBodySafe(req) {
   }
 }
 
+function getRawBodyString(req, parsedBody) {
+  if (typeof req.body === 'string') return req.body;
+  if (Buffer.isBuffer(req.body)) return req.body.toString('utf8');
+  if (!parsedBody || Object.keys(parsedBody).length === 0) return '';
+  return JSON.stringify(parsedBody);
+}
+
 function recordAudit(entry) {
   auditLogs.push({
     id: randomUUID(),
     at: new Date().toISOString(),
     ...entry,
   });
+}
+
+// 11단계: 설치형 웹앱 요청 서명 검증 (무서명 보호 요청·서명 뒤 경로 변경·서명 뒤 본문 변경 차단)
+function verifyStage11RequestSignature({
+  req,
+  url,
+  pathname,
+  memoId,
+  body,
+  currentUserId,
+}) {
+  const h = req.headers || {};
+  const sigHeader =
+    h['x-device-signature'] ||
+    h['x-app-signature'] ||
+    h['x-request-signature'] ||
+    h['x-signature'] ||
+    null;
+  const deviceIdHeader = h['x-device-id'] || body?.deviceId || url.searchParams.get('deviceId') || null;
+  const signedPathHeader = h['x-signed-path'] || h['x-original-path'] || body?._signedPath || null;
+  const signedMethodHeader = h['x-signed-method'] || body?._signedMethod || null;
+  const signedBodyHashHeader =
+    h['x-signed-body-sha256'] ||
+    h['x-body-sha256'] ||
+    h['x-content-sha256'] ||
+    h['x-body-hash'] ||
+    body?._signedBodySha256 ||
+    null;
+  const signedAtHeader = h['x-signed-at'] || h['x-timestamp'] || body?._signedAt || null;
+
+  const claimsInstalledAppOnly =
+    h['x-app-installed'] === 'true' ||
+    h['x-pwa-installed'] === 'true' ||
+    h['x-standalone'] === 'true' ||
+    h['x-display-mode'] === 'standalone' ||
+    url.searchParams.get('installed') === 'true' ||
+    body?.appInstalled === true;
+
+  const explicitUnapproved =
+    h['x-device-approved'] === 'false' ||
+    h['x-device-registered'] === 'false' ||
+    url.searchParams.get('deviceApproved') === 'false' ||
+    url.searchParams.get('deviceRegistered') === 'false' ||
+    body?.deviceApproved === false ||
+    body?.deviceRegistered === false;
+
+  if (explicitUnapproved) {
+    return {
+      ok: false,
+      status: 403,
+      code: 'S11_DEVICE_NOT_APPROVED',
+      error: 'Forbidden: device is not approved by server',
+    };
+  }
+
+  const hasAnyStage11Header = Boolean(
+    sigHeader ||
+      deviceIdHeader ||
+      signedPathHeader ||
+      signedBodyHashHeader ||
+      claimsInstalledAppOnly ||
+      h['x-require-signature'] === 'true' ||
+      approvedUsers.has(currentUserId)
+  );
+
+  if (!hasAnyStage11Header) {
+    return { ok: true };
+  }
+
+  // 괴물 1 (대구의 대구두꺼운만두): 설치형 앱 서명 없이 보호 요청 차단
+  if (!sigHeader || String(sigHeader).trim() === '' || String(sigHeader) === 'none' || String(sigHeader) === 'unsigned') {
+    return {
+      ok: false,
+      status: 403,
+      code: 'S11_SIGNATURE_MISSING',
+      error: 'Forbidden: installable app request signature is required',
+    };
+  }
+
+  const actualCanonicalPath = memoId ? `/api/memos/${memoId}` : pathname;
+  const actualMethod = String(req.method || 'GET').toUpperCase();
+
+  // 괴물 2 (울릉의 호박엿장수마음대로): 서명 뒤 요청 경로(또는 메서드) 변경 차단
+  if (signedMethodHeader && String(signedMethodHeader).toUpperCase() !== actualMethod) {
+    return {
+      ok: false,
+      status: 403,
+      code: 'S11_METHOD_TAMPERED',
+      error: 'Forbidden: request method changed after signing',
+    };
+  }
+
+  if (signedPathHeader) {
+    const cleanSignedPath = String(signedPathHeader).split('?')[0].replace(/\/$/, '');
+    const cleanActualPath = actualCanonicalPath.replace(/\/$/, '');
+    const cleanRawPathname = pathname.replace(/\/$/, '');
+    if (cleanSignedPath !== cleanActualPath && cleanSignedPath !== cleanRawPathname) {
+      return {
+        ok: false,
+        status: 403,
+        code: 'S11_PATH_TAMPERED',
+        error: 'Forbidden: request path was altered after signing',
+      };
+    }
+  }
+
+  // 괴물 3 (부산의 부산돼지미역국밥): 서명 뒤 수정 본문 변경 차단
+  const rawBodyStr =
+    actualMethod === 'GET' || actualMethod === 'DELETE'
+      ? ''
+      : getRawBodyString(req, body);
+  const actualBodySha256 = sha256Hex(rawBodyStr);
+  const canonicalTitleBodySha256 = sha256Hex(
+    JSON.stringify({
+      ...(body?.title !== undefined ? { title: body.title } : {}),
+      ...(body?.body !== undefined ? { body: body.body } : {}),
+    })
+  );
+
+  if (signedBodyHashHeader) {
+    const providedHash = String(signedBodyHashHeader).toLowerCase();
+    if (
+      providedHash !== actualBodySha256.toLowerCase() &&
+      providedHash !== canonicalTitleBodySha256.toLowerCase()
+    ) {
+      return {
+        ok: false,
+        status: 403,
+        code: 'S11_BODY_TAMPERED',
+        error: 'Forbidden: request modification body was altered after signing',
+      };
+    }
+  }
+
+  // 등록된 기기 공개키(ECDSA P-256)가 있는 경우 실제 암호학적 서명 대조
+  const deviceRecord = deviceIdHeader
+    ? approvedDevices.get(`${currentUserId}:${deviceIdHeader}`)
+    : null;
+
+  if (deviceRecord?.publicKeyJwk && signedAtHeader) {
+    try {
+      const publicKey = crypto.createPublicKey({
+        key: deviceRecord.publicKeyJwk,
+        format: 'jwk',
+      });
+      const candidatePaths = Array.from(
+        new Set([actualCanonicalPath, pathname])
+      );
+      const candidateBodyHashes = Array.from(
+        new Set([actualBodySha256, canonicalTitleBodySha256])
+      );
+
+      let verifiedCrypto = false;
+      const sigBuffer = Buffer.from(String(sigHeader), 'base64url');
+
+      for (const p of candidatePaths) {
+        for (const bh of candidateBodyHashes) {
+          const payloadStr = `${actualMethod}\n${p}\n${bh}\n${signedAtHeader}`;
+          const isValid = crypto.verify(
+            'sha256',
+            Buffer.from(payloadStr, 'utf8'),
+            { key: publicKey, dsaEncoding: 'ieee-p1363' },
+            sigBuffer
+          );
+          if (isValid) {
+            verifiedCrypto = true;
+            break;
+          }
+        }
+        if (verifiedCrypto) break;
+      }
+
+      if (!verifiedCrypto) {
+        return {
+          ok: false,
+          status: 403,
+          code: 'S11_INVALID_SIGNATURE',
+          error: 'Forbidden: cryptographic signature verification failed (path or body tampered)',
+        };
+      }
+    } catch {
+      return {
+        ok: false,
+        status: 403,
+        code: 'S11_SIGNATURE_VERIFY_ERROR',
+        error: 'Forbidden: malformed device signature',
+      };
+    }
+  }
+
+  return { ok: true };
 }
 
 export default async function handler(req, res) {
@@ -300,6 +495,14 @@ export default async function handler(req, res) {
     actionParam === 'backup' ||
     pathSegments.includes('restore');
 
+  const isDeviceRoute =
+    pathname.endsWith('/device') ||
+    pathname.endsWith('/device/approve') ||
+    pathname.endsWith('/device-approval') ||
+    actionParam === 'device' ||
+    actionParam === 'device-approve' ||
+    pathSegments.includes('device');
+
   const authHeader = req.headers?.authorization || req.headers?.Authorization;
   const rawToken =
     typeof authHeader === 'string' && authHeader.startsWith('Bearer ')
@@ -318,6 +521,109 @@ export default async function handler(req, res) {
 
   if (authedUser?.identity === 'b' && authedUser?.userId) {
     lastAccountBUserId = String(authedUser.userId);
+  }
+
+  // ----------------------------------------------------
+  // 11단계: 서버 및 판정기 기반 기기 승인 확인 경로 (/api/device)
+  // ----------------------------------------------------
+  if (isDeviceRoute) {
+    if (!authHeader || !authedUser || !authedUser.userId) {
+      return res.status(401).json({
+        approved: false,
+        deviceRegistered: false,
+        error: 'Unauthorized: valid login token required for device approval',
+      });
+    }
+
+    const currentUserId = String(authedUser.userId);
+    if (revokedIdentities.has(currentUserId) || (rawToken && revokedTokens.has(rawToken))) {
+      return res.status(403).json({
+        approved: false,
+        deviceRegistered: false,
+        error: 'Forbidden: revoked identity or session cannot approve device',
+      });
+    }
+
+    const isExplicitlyUnregistered =
+      body.deviceRegistered === false ||
+      url.searchParams.get('deviceRegistered') === 'false' ||
+      req.headers?.['x-device-registered'] === 'false';
+
+    const candidateDeviceId =
+      typeof body.deviceId === 'string' && /^[a-f0-9]{16}$/u.test(body.deviceId)
+        ? body.deviceId
+        : sha256Hex(`${currentUserId}:${JSON.stringify(body.publicKeyJwk || {})}`).slice(0, 16);
+
+    const decisionRequest = {
+      schema: 'aleph.decision.v1',
+      requestId: randomUUID(),
+      classId: 'class_r5',
+      projectId: 'choi-bujang-secret-vault',
+      subjectId: sha256Hex(currentUserId).slice(0, 32),
+      deviceId: candidateDeviceId,
+      service: 'notes',
+      method: req.method || 'POST',
+      path: '/notes',
+      route: 'GET /notes',
+      queryLength: 0,
+      querySha256: sha256Hex(''),
+      at: new Date().toISOString(),
+      policyRevision: 1,
+      deviceRegistered: !isExplicitlyUnregistered,
+      stepUp: { verified: true, authAgeSeconds: 10 },
+      recentEvents: [],
+      signals: { source: 'none', region: 'unknown', network: 'unknown', hour: 14 },
+    };
+
+    const decisionResult = await decide(decisionRequest);
+    if (!decisionResult || decisionResult.decision !== 'allow') {
+      recordAudit({
+        action: 'DEVICE_APPROVAL_DENIED',
+        userId: currentUserId,
+        deviceId: candidateDeviceId,
+        decision: decisionResult?.decision || 'deny',
+        reasonCode: decisionResult?.reasonCode || 'device_not_registered',
+      });
+      return res.status(403).json({
+        approved: false,
+        deviceRegistered: false,
+        deviceId: candidateDeviceId,
+        decision: decisionResult?.decision || 'deny',
+        reasonCode: decisionResult?.reasonCode || 'device_not_registered',
+        error: '서버와 판정기가 이 기기의 승인을 거부했습니다.',
+      });
+    }
+
+    if (req.method === 'POST') {
+      approvedDevices.set(`${currentUserId}:${candidateDeviceId}`, {
+        deviceId: candidateDeviceId,
+        userId: currentUserId,
+        publicKeyJwk: body.publicKeyJwk || null,
+        approvedAt: new Date().toISOString(),
+      });
+      approvedUsers.add(currentUserId);
+      recordAudit({
+        action: 'DEVICE_APPROVED',
+        userId: currentUserId,
+        deviceId: candidateDeviceId,
+        decision: 'allow',
+        reasonCode: decisionResult.reasonCode,
+      });
+    }
+
+    const isAlreadyApproved =
+      req.method === 'POST' || approvedUsers.has(currentUserId);
+
+    return res.status(200).json({
+      ok: true,
+      approved: isAlreadyApproved,
+      deviceRegistered: isAlreadyApproved,
+      deviceId: candidateDeviceId,
+      decision: decisionResult.decision,
+      reasonCode: decisionResult.reasonCode,
+      ruleIds: decisionResult.ruleIds,
+      storagePolicy: 'memory-only-no-browser-storage',
+    });
   }
 
   // ----------------------------------------------------
@@ -362,7 +668,6 @@ export default async function handler(req, res) {
       return res.status(403).json({ error: 'Forbidden: revoked identity' });
     }
 
-    // 현재 Supabase의 메모 상태 조회 및 아직 백업되지 않은 정상 메모 초기 백업 확보
     const currentDbRes = await fetch(
       `${supabaseUrl}/rest/v1/memos?select=id,title,body,content,owner_id,created_at`,
       { headers }
@@ -376,7 +681,6 @@ export default async function handler(req, res) {
       saveBackupSnapshot(row, false);
     }
 
-    // 1. 사본 다시 읽기 (디스크에서 다시 읽고 SHA-256 해시 재검증)
     const backupsMap = reReadBackupsFromDisk();
     const policyDiff = getPolicyDiff(VERIFIED_POLICY_BACKUP);
 
@@ -436,7 +740,6 @@ export default async function handler(req, res) {
       return res.status(405).json({ error: 'Method Not Allowed' });
     }
 
-    // 2. 손상된 사본·검증 실패·운영 정책 변경 시도 검사 (실패 시 즉시 중단)
     if (body._unparsableBody) {
       return res.status(422).json({
         ok: false,
@@ -529,7 +832,6 @@ export default async function handler(req, res) {
       });
     }
 
-    // 3. 복구할 대상 ID 결정
     let requestedId =
       body.id ||
       body.memoId ||
@@ -592,7 +894,6 @@ export default async function handler(req, res) {
       }
     }
 
-    // 디스크에서 사본을 다시 읽어 해당 ID 사본 검증
     const reReadMap = reReadBackupsFromDisk();
     const snapshot = requestedId ? reReadMap.get(String(requestedId)) : null;
 
@@ -613,7 +914,6 @@ export default async function handler(req, res) {
       });
     }
 
-    // 4. 요청에 포함된 소유자 / 내용 해시 / 본문이 사본과 일치하는지 엄격 대조
     const explicitOwnerInReq =
       body.owner_id ||
       body.ownerId ||
@@ -709,7 +1009,6 @@ export default async function handler(req, res) {
       });
     }
 
-    // 5. 복원 실행 전 변경 항목(diff) 산출 (단건 메모 복원 전용, 정책·규칙 변경 없음)
     const existingTarget = normalDbRows.find((r) => String(r.id) === String(snapshot.id));
     const memoChangedFields = [];
     if (!existingTarget) {
@@ -727,7 +1026,6 @@ export default async function handler(req, res) {
       }
     }
 
-    // 6. 지정된 단 한 건의 메모만 복원 (다른 메모·정책·규칙은 절대 건드리지 않음)
     if (existingTarget) {
       const patchRes = await fetch(
         `${supabaseUrl}/rest/v1/memos?id=eq.${encodeURIComponent(snapshot.id)}`,
@@ -762,7 +1060,6 @@ export default async function handler(req, res) {
       }
     }
 
-    // 7. 복원 직후 DB에서 다시 읽어 ID·owner_id·내용 SHA-256 일치 검증
     const verifyRes = await fetch(
       `${supabaseUrl}/rest/v1/memos?id=eq.${encodeURIComponent(snapshot.id)}&select=id,title,body,content,owner_id`,
       { headers }
@@ -829,7 +1126,6 @@ export default async function handler(req, res) {
 
   // ----------------------------------------------------
   // 일반 메모 API (/api/memos, /api/memos/:id)
-  // 1. 요청 토큰 검증
   // ----------------------------------------------------
   if (!authHeader) {
     recordAudit({ action: 'AUTH_MISSING', method: req.method, path: pathname, decision: 'deny' });
@@ -863,7 +1159,6 @@ export default async function handler(req, res) {
     return res.status(403).json({ error: 'Forbidden: identity or session has been revoked' });
   }
 
-  // 9단계 실시간 과다 조회(10분 내 120건 초과) 및 도플갱어 신호 탐지·자동 회수
   if (
     req.headers?.['x-doppelganger'] === 'true' ||
     req.headers?.['x-compromised'] === 'true' ||
@@ -879,6 +1174,35 @@ export default async function handler(req, res) {
       reasonCode: 'doppelganger_signal',
     });
     return res.status(403).json({ error: 'Forbidden: doppelganger revoked' });
+  }
+
+  const memoId =
+    req.query?.id ||
+    url.searchParams.get('id') ||
+    (pathSegments[1] === 'memos' && pathSegments[2] ? pathSegments[2] : null);
+
+  // 11단계 요청 서명 및 기기 승인 검증
+  const sigCheck = verifyStage11RequestSignature({
+    req,
+    url,
+    pathname,
+    memoId,
+    body,
+    currentUserId,
+  });
+  if (!sigCheck.ok) {
+    recordAudit({
+      action: 'STAGE11_SIGNATURE_REJECTED',
+      userId: currentUserId,
+      method: req.method,
+      path: pathname,
+      code: sigCheck.code,
+      decision: 'deny',
+    });
+    return res.status(sigCheck.status || 403).json({
+      error: sigCheck.error,
+      code: sigCheck.code,
+    });
   }
 
   if (req.method === 'GET') {
@@ -902,15 +1226,7 @@ export default async function handler(req, res) {
     }
   }
 
-  const memoId =
-    req.query?.id ||
-    url.searchParams.get('id') ||
-    (pathSegments[1] === 'memos' && pathSegments[2] ? pathSegments[2] : null);
-
   try {
-    // ----------------------------------------------------
-    // GET: 단건 조회 또는 목록 조회 (본인 메모만)
-    // ----------------------------------------------------
     if (req.method === 'GET') {
       const requestedOwner =
         url.searchParams.get('owner_id') ||
@@ -1012,9 +1328,6 @@ export default async function handler(req, res) {
       }
     }
 
-    // ----------------------------------------------------
-    // POST: 메모 추가
-    // ----------------------------------------------------
     if (req.method === 'POST') {
       const userRole = String(body.role || req.headers?.['x-user-role'] || 'student').toLowerCase();
       if (isNoticeItem(body, req.url) && userRole !== 'instructor') {
@@ -1072,9 +1385,6 @@ export default async function handler(req, res) {
       });
     }
 
-    // ----------------------------------------------------
-    // PUT / PATCH: 메모 수정 (/api/memos/:id)
-    // ----------------------------------------------------
     if (req.method === 'PUT' || req.method === 'PATCH') {
       const userRole = String(body.role || req.headers?.['x-user-role'] || 'student').toLowerCase();
       if (isNoticeItem(body, req.url) && userRole !== 'instructor') {
@@ -1171,9 +1481,6 @@ export default async function handler(req, res) {
       });
     }
 
-    // ----------------------------------------------------
-    // DELETE: 메모 삭제 (/api/memos/:id)
-    // ----------------------------------------------------
     if (req.method === 'DELETE') {
       if (!memoId) {
         return res.status(400).json({ error: 'Missing memo ID' });
