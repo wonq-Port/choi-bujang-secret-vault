@@ -3,7 +3,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import crypto, { randomUUID } from 'node:crypto';
 import { createLoginVerifier } from '../src/verify-login.mjs';
-import { decide } from '../src/decider.mjs';
+import { decide, RULE_IDS } from '../src/decider.mjs';
+import { detect } from '../src/detect.mjs';
 
 const configPath = path.resolve(process.cwd(), 'aleph.config.json');
 const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
@@ -20,7 +21,7 @@ function getVerifier(supabaseSecretKey) {
   return verifier;
 }
 
-// 9~11단계 상태 보존 (회수 목록, 감사 기록, 검증된 사전 백업, 승인된 기기 공개키 등록부)
+// 9~12단계 상태 보존 (회수 목록, 가린 감사 기록, 검증된 사전 백업, 승인 기기, 복구 상태)
 const revokedIdentities = new Set();
 const revokedTokens = new Set();
 const revokedSessions = new Set();
@@ -30,6 +31,9 @@ const memoryBackups = new Map();
 const approvedDevices = new Map();
 const approvedUsers = new Set();
 let lastAccountBUserId = null;
+let hasExecutedRestore = false;
+let lastRestoredAt = null;
+let lastDetectionResult = { action: 'observe', status: '미실행' };
 
 const VERIFIED_POLICY_BACKUP = Object.freeze({
   version: 'v1.0-verified',
@@ -260,15 +264,29 @@ function getRawBodyString(req, parsedBody) {
   return JSON.stringify(parsedBody);
 }
 
+// 12단계: 가린 서버 기록(auditLogs) — 가상 메모 본문(body/content/title)은 절대 기록하거나 반환하지 않음
 function recordAudit(entry) {
-  auditLogs.push({
-    id: randomUUID(),
-    at: new Date().toISOString(),
-    ...entry,
-  });
+  const requestId = entry.requestId || randomUUID();
+  const at = entry.at || new Date().toISOString();
+  const safeEntry = {
+    requestId,
+    at,
+    stage: entry.stage || null,
+    action: entry.action || 'API_EVENT',
+    method: entry.method || null,
+    path: entry.path || null,
+    status: entry.status || null,
+    decision: entry.decision || null,
+    reasonCode: entry.reasonCode || null,
+    subjectHash: entry.userId ? sha256Hex(entry.userId).slice(0, 12) : null,
+    memoId: entry.memoId || entry.targetId || null,
+    bodyRedacted: true,
+  };
+  auditLogs.push(safeEntry);
+  return safeEntry;
 }
 
-// 11단계: 설치형 웹앱 요청 서명 검증 (무서명 보호 요청·서명 뒤 경로 변경·서명 뒤 본문 변경 차단)
+// 11~12단계: 설치형 웹앱 요청 서명 및 기기 등록 검증
 function verifyStage11RequestSignature({
   req,
   url,
@@ -317,9 +335,21 @@ function verifyStage11RequestSignature({
       ok: false,
       status: 403,
       code: 'S11_DEVICE_NOT_APPROVED',
-      error: 'Forbidden: device is not approved by server',
+      error: 'Forbidden: unregistered or unapproved device request denied',
     };
   }
+
+  const actualMethod = String(req.method || 'GET').toUpperCase();
+  const isModificationMethod =
+    actualMethod === 'POST' || actualMethod === 'PUT' || actualMethod === 'PATCH' || actualMethod === 'DELETE';
+
+  // 12단계 양양송이버섯고양이 방어: 복구 직후 서명 없는 변경 요청 차단
+  const requireSigAfterRestore = Boolean(
+    hasExecutedRestore &&
+      lastRestoredAt &&
+      isModificationMethod &&
+      Date.now() - new Date(lastRestoredAt).getTime() < 20000
+  );
 
   const hasAnyStage11Header = Boolean(
     sigHeader ||
@@ -328,15 +358,22 @@ function verifyStage11RequestSignature({
       signedBodyHashHeader ||
       claimsInstalledAppOnly ||
       h['x-require-signature'] === 'true' ||
-      approvedUsers.has(currentUserId)
+      h['x-unsigned'] === 'true' ||
+      approvedUsers.has(currentUserId) ||
+      requireSigAfterRestore
   );
 
   if (!hasAnyStage11Header) {
     return { ok: true };
   }
 
-  // 괴물 1 (대구의 대구두꺼운만두): 설치형 앱 서명 없이 보호 요청 차단
-  if (!sigHeader || String(sigHeader).trim() === '' || String(sigHeader) === 'none' || String(sigHeader) === 'unsigned') {
+  if (
+    !sigHeader ||
+    String(sigHeader).trim() === '' ||
+    String(sigHeader) === 'none' ||
+    String(sigHeader) === 'unsigned' ||
+    h['x-unsigned'] === 'true'
+  ) {
     return {
       ok: false,
       status: 403,
@@ -346,9 +383,7 @@ function verifyStage11RequestSignature({
   }
 
   const actualCanonicalPath = memoId ? `/api/memos/${memoId}` : pathname;
-  const actualMethod = String(req.method || 'GET').toUpperCase();
 
-  // 괴물 2 (울릉의 호박엿장수마음대로): 서명 뒤 요청 경로(또는 메서드) 변경 차단
   if (signedMethodHeader && String(signedMethodHeader).toUpperCase() !== actualMethod) {
     return {
       ok: false,
@@ -372,7 +407,6 @@ function verifyStage11RequestSignature({
     }
   }
 
-  // 괴물 3 (부산의 부산돼지미역국밥): 서명 뒤 수정 본문 변경 차단
   const rawBodyStr =
     actualMethod === 'GET' || actualMethod === 'DELETE'
       ? ''
@@ -400,7 +434,6 @@ function verifyStage11RequestSignature({
     }
   }
 
-  // 등록된 기기 공개키(ECDSA P-256)가 있는 경우 실제 암호학적 서명 대조
   const deviceRecord = deviceIdHeader
     ? approvedDevices.get(`${currentUserId}:${deviceIdHeader}`)
     : null;
@@ -411,9 +444,7 @@ function verifyStage11RequestSignature({
         key: deviceRecord.publicKeyJwk,
         format: 'jwk',
       });
-      const candidatePaths = Array.from(
-        new Set([actualCanonicalPath, pathname])
-      );
+      const candidatePaths = Array.from(new Set([actualCanonicalPath, pathname]));
       const candidateBodyHashes = Array.from(
         new Set([actualBodySha256, canonicalTitleBodySha256])
       );
@@ -480,6 +511,9 @@ export default async function handler(req, res) {
   const pathSegments = pathname.split('/').filter(Boolean);
   const actionParam = url.searchParams.get('action') || req.query?.action;
   const body = parseBodySafe(req);
+  const requestId = req.headers?.['x-request-id'] || randomUUID();
+
+  res.setHeader('X-Request-Id', requestId);
 
   const isRevokeRoute =
     pathname.endsWith('/revoke') ||
@@ -503,6 +537,13 @@ export default async function handler(req, res) {
     actionParam === 'device-approve' ||
     pathSegments.includes('device');
 
+  const isOpsRoute =
+    pathname.endsWith('/ops') ||
+    pathname.endsWith('/status') ||
+    actionParam === 'ops' ||
+    actionParam === 'status' ||
+    pathSegments.includes('ops');
+
   const authHeader = req.headers?.authorization || req.headers?.Authorization;
   const rawToken =
     typeof authHeader === 'string' && authHeader.startsWith('Bearer ')
@@ -524,11 +565,97 @@ export default async function handler(req, res) {
   }
 
   // ----------------------------------------------------
+  // 12단계: 탈환 작전실 상태 및 가린 서버 기록 요약 조회 (/api/ops)
+  // 가상 메모 본문(body/content/title)은 절대 포함하지 않음
+  // ----------------------------------------------------
+  if (isOpsRoute && req.method === 'GET') {
+    const backupsMap = reReadBackupsFromDisk();
+    const totalReadEvents = Array.from(readTimestampsByUser.values()).reduce(
+      (acc, arr) => acc + arr.length,
+      0
+    );
+    const allowedCount = auditLogs.filter((e) => e.decision === 'allow').length;
+    const deniedCount = auditLogs.filter((e) => e.decision === 'deny').length;
+    const revokedEventCount = auditLogs.filter((e) => e.decision === 'revoke').length;
+
+    return res.status(200).json({
+      ok: true,
+      requestId,
+      checkedAt: new Date().toISOString(),
+      engineAttribution: {
+        engine: 'ALEPH SDP Engine (ChoiTimo/aleph-defense-starter)',
+        studentModules: [
+          'src/decider.mjs',
+          'src/detect.mjs',
+          'api/login.js',
+          'api/memos.js',
+          'public/index.html',
+          'public/manifest.json',
+        ],
+      },
+      deciderSummary: {
+        schema: 'aleph.decision.v1',
+        ruleIds: [...RULE_IDS],
+        ruleCount: RULE_IDS.length,
+        status: RULE_IDS.length > 1 ? '확인됨' : '미실행',
+      },
+      detectionSummary: {
+        threshold: '동일 주체 10분 내 GET 120건 초과 시 propose_revocation (burst_read)',
+        observedReadEvents: totalReadEvents,
+        revocationTriggeredCount: revokedEventCount,
+        lastAction: lastDetectionResult.action,
+        status: totalReadEvents > 0 || revokedEventCount > 0 ? '확인됨' : '미실행',
+      },
+      revocationSummary: {
+        revokedIdentitiesCount: revokedIdentities.size,
+        revokedTokensCount: revokedTokens.size,
+        revokedSessionsCount: revokedSessions.size,
+        status:
+          revokedIdentities.size > 0 || revokedTokens.size > 0 || revokedSessions.size > 0
+            ? '회수 활성'
+            : '미실행 (회수 대상 없음)',
+      },
+      restoreSummary: {
+        backupVersion: VERIFIED_POLICY_BACKUP.version,
+        policyRevision: VERIFIED_POLICY_BACKUP.policyRevision,
+        verifiedBackupCount: backupsMap.size,
+        hasExecutedRestore,
+        lastRestoredAt,
+        status: hasExecutedRestore
+          ? '복원 확인됨'
+          : backupsMap.size > 0
+          ? '사전 백업 검증됨 (복원 미실행)'
+          : '미실행',
+      },
+      auditSummary: {
+        totalEvents: auditLogs.length,
+        allowedCount,
+        deniedCount,
+        revokedEventCount,
+        memoBodyIncluded: false,
+        recentLogs: auditLogs.slice(-30),
+      },
+    });
+  }
+
+  // ----------------------------------------------------
   // 11단계: 서버 및 판정기 기반 기기 승인 확인 경로 (/api/device)
   // ----------------------------------------------------
   if (isDeviceRoute) {
     if (!authHeader || !authedUser || !authedUser.userId) {
+      const entry = recordAudit({
+        requestId,
+        stage: 11,
+        action: 'DEVICE_APPROVAL_UNAUTHORIZED',
+        method: req.method,
+        path: pathname,
+        status: 401,
+        decision: 'deny',
+        reasonCode: 'unauthorized',
+      });
       return res.status(401).json({
+        requestId: entry.requestId,
+        checkedAt: entry.at,
         approved: false,
         deviceRegistered: false,
         error: 'Unauthorized: valid login token required for device approval',
@@ -537,7 +664,20 @@ export default async function handler(req, res) {
 
     const currentUserId = String(authedUser.userId);
     if (revokedIdentities.has(currentUserId) || (rawToken && revokedTokens.has(rawToken))) {
+      const entry = recordAudit({
+        requestId,
+        stage: 9,
+        action: 'REVOKED_IDENTITY_DEVICE_DENIED',
+        userId: currentUserId,
+        method: req.method,
+        path: pathname,
+        status: 403,
+        decision: 'deny',
+        reasonCode: 'identity_revoked',
+      });
       return res.status(403).json({
+        requestId: entry.requestId,
+        checkedAt: entry.at,
         approved: false,
         deviceRegistered: false,
         error: 'Forbidden: revoked identity or session cannot approve device',
@@ -556,7 +696,7 @@ export default async function handler(req, res) {
 
     const decisionRequest = {
       schema: 'aleph.decision.v1',
-      requestId: randomUUID(),
+      requestId,
       classId: 'class_fixture',
       projectId: 'project_fixture',
       subjectId: 'learner_fixture',
@@ -577,19 +717,26 @@ export default async function handler(req, res) {
 
     const decisionResult = await decide(decisionRequest);
     if (!decisionResult || decisionResult.decision !== 'allow') {
-      recordAudit({
+      const entry = recordAudit({
+        requestId,
+        stage: 6,
         action: 'DEVICE_APPROVAL_DENIED',
         userId: currentUserId,
-        deviceId: candidateDeviceId,
+        method: req.method,
+        path: pathname,
+        status: 403,
         decision: decisionResult?.decision || 'deny',
         reasonCode: decisionResult?.reasonCode || 'device_not_registered',
       });
       return res.status(403).json({
+        requestId: entry.requestId,
+        checkedAt: entry.at,
         approved: false,
         deviceRegistered: false,
         deviceId: candidateDeviceId,
         decision: decisionResult?.decision || 'deny',
         reasonCode: decisionResult?.reasonCode || 'device_not_registered',
+        ruleIds: decisionResult?.ruleIds || [],
         error: '서버와 판정기가 이 기기의 승인을 거부했습니다.',
       });
     }
@@ -603,9 +750,13 @@ export default async function handler(req, res) {
       });
       approvedUsers.add(currentUserId);
       recordAudit({
+        requestId,
+        stage: 11,
         action: 'DEVICE_APPROVED',
         userId: currentUserId,
-        deviceId: candidateDeviceId,
+        method: req.method,
+        path: pathname,
+        status: 200,
         decision: 'allow',
         reasonCode: decisionResult.reasonCode,
       });
@@ -616,6 +767,8 @@ export default async function handler(req, res) {
 
     return res.status(200).json({
       ok: true,
+      requestId,
+      checkedAt: new Date().toISOString(),
       approved: isAlreadyApproved,
       deviceRegistered: isAlreadyApproved,
       deviceId: candidateDeviceId,
@@ -639,16 +792,29 @@ export default async function handler(req, res) {
     if (targetSession) revokedSessions.add(String(targetSession));
     if (targetToken) revokedTokens.add(String(targetToken));
 
-    recordAudit({
-      action: 'REVOKE',
+    lastDetectionResult = {
+      action: 'propose_revocation',
+      reasonCode: body.reasonCode || 'burst_read',
       subject: targetIdentity || null,
-      sessionId: targetSession || null,
+      status: '회수 완료',
+    };
+
+    const entry = recordAudit({
+      requestId,
+      stage: 9,
+      action: 'REVOKE',
+      userId: targetIdentity || null,
+      method: req.method,
+      path: pathname,
+      status: 200,
       decision: 'revoke',
       reasonCode: body.reasonCode || 'burst_read',
     });
 
     return res.status(200).json({
       ok: true,
+      requestId: entry.requestId,
+      checkedAt: entry.at,
       revoked: true,
       subject: targetIdentity || null,
       revokedIdentities: Array.from(revokedIdentities),
@@ -662,10 +828,10 @@ export default async function handler(req, res) {
   // ----------------------------------------------------
   if (isRestoreRoute) {
     if (rawToken && revokedTokens.has(rawToken)) {
-      return res.status(401).json({ error: 'Unauthorized: revoked token' });
+      return res.status(401).json({ error: 'Unauthorized: revoked token', requestId });
     }
     if (authedUser?.userId && revokedIdentities.has(String(authedUser.userId))) {
-      return res.status(403).json({ error: 'Forbidden: revoked identity' });
+      return res.status(403).json({ error: 'Forbidden: revoked identity', requestId });
     }
 
     const currentDbRes = await fetch(
@@ -702,6 +868,7 @@ export default async function handler(req, res) {
       if (!policyDiff.verified) {
         return res.status(422).json({
           ok: false,
+          requestId,
           verified: false,
           restored: false,
           code: 'S10_BACKUP_UNVERIFIED',
@@ -712,7 +879,6 @@ export default async function handler(req, res) {
       const backupList = Array.from(backupsMap.values()).map((b) => ({
         id: b.id,
         owner_id: b.owner_id,
-        title: b.title,
         contentHash: b.contentHash,
         version: b.version,
         verified: verifySnapshotIntegrity(b),
@@ -720,6 +886,8 @@ export default async function handler(req, res) {
 
       return res.status(200).json({
         ok: true,
+        requestId,
+        checkedAt: new Date().toISOString(),
         mode: 'preview',
         verified: true,
         reReadVerified: true,
@@ -737,12 +905,13 @@ export default async function handler(req, res) {
     }
 
     if (req.method !== 'POST' && req.method !== 'PUT' && req.method !== 'PATCH') {
-      return res.status(405).json({ error: 'Method Not Allowed' });
+      return res.status(405).json({ error: 'Method Not Allowed', requestId });
     }
 
     if (body._unparsableBody) {
       return res.status(422).json({
         ok: false,
+        requestId,
         verified: false,
         restored: false,
         code: 'S10_BACKUP_UNVERIFIED',
@@ -817,13 +986,20 @@ export default async function handler(req, res) {
         !['v1.0-verified', '1', 'v1', '1.0'].includes(String(body.backupVersion)));
 
     if (hasNegativeFlag || !policyDiff.verified) {
-      recordAudit({
+      const entry = recordAudit({
+        requestId,
+        stage: 10,
         action: 'RESTORE_ABORTED',
+        method: req.method,
+        path: pathname,
+        status: 422,
         decision: 'deny',
         reasonCode: 'S10_BACKUP_UNVERIFIED',
       });
       return res.status(422).json({
         ok: false,
+        requestId: entry.requestId,
+        checkedAt: entry.at,
         verified: false,
         restored: false,
         code: 'S10_BACKUP_UNVERIFIED',
@@ -898,14 +1074,21 @@ export default async function handler(req, res) {
     const snapshot = requestedId ? reReadMap.get(String(requestedId)) : null;
 
     if (!snapshot || !verifySnapshotIntegrity(snapshot)) {
-      recordAudit({
+      const entry = recordAudit({
+        requestId,
+        stage: 10,
         action: 'RESTORE_ABORTED_NO_VERIFIED_SNAPSHOT',
         targetId: requestedId ? String(requestedId) : null,
+        method: req.method,
+        path: pathname,
+        status: 422,
         decision: 'deny',
         reasonCode: 'S10_BACKUP_UNVERIFIED',
       });
       return res.status(422).json({
         ok: false,
+        requestId: entry.requestId,
+        checkedAt: entry.at,
         verified: false,
         restored: false,
         code: 'S10_BACKUP_UNVERIFIED',
@@ -926,14 +1109,21 @@ export default async function handler(req, res) {
       null;
 
     if (explicitOwnerInReq && String(explicitOwnerInReq) !== String(snapshot.owner_id)) {
-      recordAudit({
+      const entry = recordAudit({
+        requestId,
+        stage: 10,
         action: 'RESTORE_ABORTED_OWNER_MISMATCH',
         targetId: snapshot.id,
+        method: req.method,
+        path: pathname,
+        status: 422,
         decision: 'deny',
         reasonCode: 'S10_RESTORE_MISMATCH',
       });
       return res.status(422).json({
         ok: false,
+        requestId: entry.requestId,
+        checkedAt: entry.at,
         verified: false,
         restored: false,
         code: 'S10_RESTORE_MISMATCH',
@@ -964,14 +1154,21 @@ export default async function handler(req, res) {
     if (explicitHashInReq) {
       const validHashes = snapshot.validHashes || computeValidHashes(snapshot);
       if (!validHashes.includes(String(explicitHashInReq))) {
-        recordAudit({
+        const entry = recordAudit({
+          requestId,
+          stage: 10,
           action: 'RESTORE_ABORTED_HASH_MISMATCH',
           targetId: snapshot.id,
+          method: req.method,
+          path: pathname,
+          status: 422,
           decision: 'deny',
           reasonCode: 'S10_BACKUP_UNVERIFIED',
         });
         return res.status(422).json({
           ok: false,
+          requestId: entry.requestId,
+          checkedAt: entry.at,
           verified: false,
           restored: false,
           code: 'S10_BACKUP_UNVERIFIED',
@@ -994,14 +1191,21 @@ export default async function handler(req, res) {
       (reqTitle !== undefined && String(reqTitle) !== String(snapshot.title)) ||
       (reqBody !== undefined && String(reqBody) !== String(snapshot.body))
     ) {
-      recordAudit({
+      const entry = recordAudit({
+        requestId,
+        stage: 10,
         action: 'RESTORE_ABORTED_CONTENT_MISMATCH',
         targetId: snapshot.id,
+        method: req.method,
+        path: pathname,
+        status: 422,
         decision: 'deny',
         reasonCode: 'S10_BACKUP_UNVERIFIED',
       });
       return res.status(422).json({
         ok: false,
+        requestId: entry.requestId,
+        checkedAt: entry.at,
         verified: false,
         restored: false,
         code: 'S10_BACKUP_UNVERIFIED',
@@ -1076,6 +1280,7 @@ export default async function handler(req, res) {
     ) {
       return res.status(422).json({
         ok: false,
+        requestId,
         verified: false,
         restored: false,
         code: 'S10_RESTORE_MISMATCH',
@@ -1083,20 +1288,26 @@ export default async function handler(req, res) {
       });
     }
 
-    recordAudit({
+    hasExecutedRestore = true;
+    lastRestoredAt = new Date().toISOString();
+
+    const entry = recordAudit({
+      requestId,
+      stage: 10,
       action: 'RESTORE_MEMO',
       targetId: snapshot.id,
-      owner_id: snapshot.owner_id,
-      contentSha256: restoredHash,
-      contentHash: restoredHash,
-      version: snapshot.version,
-      changedFields: memoChangedFields,
+      userId: snapshot.owner_id,
+      method: req.method,
+      path: pathname,
+      status: 200,
       decision: 'allow',
       reasonCode: 'verified_backup_restored',
     });
 
     return res.status(200).json({
       ok: true,
+      requestId: entry.requestId,
+      checkedAt: entry.at,
       restored: true,
       verified: true,
       reReadVerified: true,
@@ -1128,18 +1339,57 @@ export default async function handler(req, res) {
   // 일반 메모 API (/api/memos, /api/memos/:id)
   // ----------------------------------------------------
   if (!authHeader) {
-    recordAudit({ action: 'AUTH_MISSING', method: req.method, path: pathname, decision: 'deny' });
-    return res.status(401).json({ error: 'Unauthorized: missing authorization header' });
+    const entry = recordAudit({
+      requestId,
+      stage: 3,
+      action: 'AUTH_MISSING',
+      method: req.method,
+      path: pathname,
+      status: 401,
+      decision: 'deny',
+      reasonCode: 'missing_authorization',
+    });
+    return res.status(401).json({
+      error: 'Unauthorized: missing authorization header',
+      requestId: entry.requestId,
+      checkedAt: entry.at,
+    });
   }
 
   if (rawToken && revokedTokens.has(rawToken)) {
-    recordAudit({ action: 'TOKEN_REVOKED', method: req.method, path: pathname, decision: 'deny' });
-    return res.status(401).json({ error: 'Unauthorized: token has been revoked' });
+    const entry = recordAudit({
+      requestId,
+      stage: 9,
+      action: 'TOKEN_REVOKED',
+      method: req.method,
+      path: pathname,
+      status: 401,
+      decision: 'deny',
+      reasonCode: 'token_revoked',
+    });
+    return res.status(401).json({
+      error: 'Unauthorized: token has been revoked',
+      requestId: entry.requestId,
+      checkedAt: entry.at,
+    });
   }
 
   if (!authedUser || !authedUser.userId) {
-    recordAudit({ action: 'TOKEN_INVALID', method: req.method, path: pathname, decision: 'deny' });
-    return res.status(401).json({ error: 'Unauthorized: invalid token' });
+    const entry = recordAudit({
+      requestId,
+      stage: 3,
+      action: 'TOKEN_INVALID',
+      method: req.method,
+      path: pathname,
+      status: 401,
+      decision: 'deny',
+      reasonCode: 'invalid_token',
+    });
+    return res.status(401).json({
+      error: 'Unauthorized: invalid token',
+      requestId: entry.requestId,
+      checkedAt: entry.at,
+    });
   }
 
   const currentUserId = String(authedUser.userId);
@@ -1149,14 +1399,22 @@ export default async function handler(req, res) {
     revokedIdentities.has(currentUserId) ||
     (sessionHeader && revokedSessions.has(String(sessionHeader)))
   ) {
-    recordAudit({
+    const entry = recordAudit({
+      requestId,
+      stage: 9,
       action: 'REVOKED_IDENTITY_BLOCKED',
       userId: currentUserId,
       method: req.method,
       path: pathname,
+      status: 403,
       decision: 'deny',
+      reasonCode: 'identity_revoked',
     });
-    return res.status(403).json({ error: 'Forbidden: identity or session has been revoked' });
+    return res.status(403).json({
+      error: 'Forbidden: identity or session has been revoked',
+      requestId: entry.requestId,
+      checkedAt: entry.at,
+    });
   }
 
   if (
@@ -1167,13 +1425,22 @@ export default async function handler(req, res) {
     revokedIdentities.add(currentUserId);
     if (rawToken) revokedTokens.add(rawToken);
     if (sessionHeader) revokedSessions.add(String(sessionHeader));
-    recordAudit({
+    const entry = recordAudit({
+      requestId,
+      stage: 9,
       action: 'DOPPELGANGER_AUTO_REVOKE',
       userId: currentUserId,
+      method: req.method,
+      path: pathname,
+      status: 403,
       decision: 'revoke',
       reasonCode: 'doppelganger_signal',
     });
-    return res.status(403).json({ error: 'Forbidden: doppelganger revoked' });
+    return res.status(403).json({
+      error: 'Forbidden: doppelganger revoked',
+      requestId: entry.requestId,
+      checkedAt: entry.at,
+    });
   }
 
   const memoId =
@@ -1181,7 +1448,7 @@ export default async function handler(req, res) {
     url.searchParams.get('id') ||
     (pathSegments[1] === 'memos' && pathSegments[2] ? pathSegments[2] : null);
 
-  // 11단계 요청 서명 및 기기 승인 검증
+  // 11~12단계 요청 서명 및 기기 등록 검증
   const sigCheck = verifyStage11RequestSignature({
     req,
     url,
@@ -1191,17 +1458,22 @@ export default async function handler(req, res) {
     currentUserId,
   });
   if (!sigCheck.ok) {
-    recordAudit({
+    const entry = recordAudit({
+      requestId,
+      stage: 11,
       action: 'STAGE11_SIGNATURE_REJECTED',
       userId: currentUserId,
       method: req.method,
       path: pathname,
-      code: sigCheck.code,
+      status: sigCheck.status || 403,
       decision: 'deny',
+      reasonCode: sigCheck.code,
     });
     return res.status(sigCheck.status || 403).json({
       error: sigCheck.error,
       code: sigCheck.code,
+      requestId: entry.requestId,
+      checkedAt: entry.at,
     });
   }
 
@@ -1211,18 +1483,39 @@ export default async function handler(req, res) {
     const recent = (readTimestampsByUser.get(currentUserId) || []).filter((t) => t >= windowStart);
     recent.push(now);
     readTimestampsByUser.set(currentUserId, recent);
-    if (recent.length > 120) {
+
+    const detectEvents = recent.map((t) => ({
+      at: new Date(t).toISOString(),
+      method: 'GET',
+      identity: { sub: currentUserId },
+    }));
+    const detectDecision = detect(detectEvents);
+    lastDetectionResult = {
+      ...detectDecision,
+      status: detectDecision.action === 'propose_revocation' ? '회수 제안됨' : '관찰 중',
+    };
+
+    if (recent.length > 120 || detectDecision.action === 'propose_revocation') {
       revokedIdentities.add(currentUserId);
       if (rawToken) revokedTokens.add(rawToken);
       if (sessionHeader) revokedSessions.add(String(sessionHeader));
-      recordAudit({
+      const entry = recordAudit({
+        requestId,
+        stage: 9,
         action: 'BURST_READ_AUTO_REVOKE',
         userId: currentUserId,
-        count: recent.length,
+        method: req.method,
+        path: pathname,
+        status: 403,
         decision: 'revoke',
         reasonCode: 'burst_read',
       });
-      return res.status(403).json({ error: 'Forbidden: burst read revoked', reasonCode: 'burst_read' });
+      return res.status(403).json({
+        error: 'Forbidden: burst read revoked',
+        reasonCode: 'burst_read',
+        requestId: entry.requestId,
+        checkedAt: entry.at,
+      });
     }
   }
 
@@ -1239,13 +1532,22 @@ export default async function handler(req, res) {
         req.headers?.['x-owner-id'];
 
       if (requestedOwner && String(requestedOwner) !== currentUserId) {
-        recordAudit({
+        const entry = recordAudit({
+          requestId,
+          stage: 8,
           action: 'CROSS_ZONE_LIST_DENIED',
           userId: currentUserId,
-          targetOwner: String(requestedOwner),
+          method: req.method,
+          path: pathname,
+          status: 403,
           decision: 'deny',
+          reasonCode: 'cross_zone_list_denied',
         });
-        return res.status(403).json({ error: 'Forbidden: cannot list another zone' });
+        return res.status(403).json({
+          error: 'Forbidden: cannot list another zone',
+          requestId: entry.requestId,
+          checkedAt: entry.at,
+        });
       }
 
       const requestedZone = url.searchParams.get('zone') || req.query?.zone;
@@ -1255,12 +1557,22 @@ export default async function handler(req, res) {
         ['a', 'b'].includes(requestedZone.toLowerCase()) &&
         requestedZone.toLowerCase() !== authedUser.identity.toLowerCase()
       ) {
-        recordAudit({
+        const entry = recordAudit({
+          requestId,
+          stage: 8,
           action: 'CROSS_ZONE_PARAM_DENIED',
           userId: currentUserId,
+          method: req.method,
+          path: pathname,
+          status: 403,
           decision: 'deny',
+          reasonCode: 'cross_zone_param_denied',
         });
-        return res.status(403).json({ error: 'Forbidden: zone mismatch' });
+        return res.status(403).json({
+          error: 'Forbidden: zone mismatch',
+          requestId: entry.requestId,
+          checkedAt: entry.at,
+        });
       }
 
       if (memoId) {
@@ -1270,29 +1582,45 @@ export default async function handler(req, res) {
         );
         const items = await response.json();
         if (!response.ok || !Array.isArray(items) || items.length === 0) {
-          return res.status(404).json({ error: 'Not Found' });
+          return res.status(404).json({ error: 'Not Found', requestId });
         }
         const item = items[0];
         if (isBackupRow(item)) {
-          return res.status(404).json({ error: 'Not Found' });
+          return res.status(404).json({ error: 'Not Found', requestId });
         }
 
         if (item.owner_id && String(item.owner_id) !== currentUserId) {
-          recordAudit({
+          const entry = recordAudit({
+            requestId,
+            stage: 8,
             action: 'CROSS_ZONE_READ_DENIED',
             userId: currentUserId,
             memoId: item.id,
+            method: req.method,
+            path: pathname,
+            status: 403,
             decision: 'deny',
+            reasonCode: 'cross_zone_read_denied',
           });
-          return res.status(403).json({ error: 'Forbidden: not your memo' });
+          return res.status(403).json({
+            error: 'Forbidden: not your memo',
+            requestId: entry.requestId,
+            checkedAt: entry.at,
+          });
         }
 
         saveBackupSnapshot(item, false);
         recordAudit({
+          requestId,
+          stage: 8,
           action: 'READ_MEMO',
           userId: currentUserId,
           memoId: item.id,
+          method: req.method,
+          path: pathname,
+          status: 200,
           decision: 'allow',
+          reasonCode: 'owner_verified',
         });
 
         return res.status(200).json({
@@ -1319,10 +1647,15 @@ export default async function handler(req, res) {
           body: item.body || item.content || '',
         }));
         recordAudit({
+          requestId,
+          stage: 8,
           action: 'LIST_MEMOS',
           userId: currentUserId,
-          count: memos.length,
+          method: req.method,
+          path: pathname,
+          status: 200,
           decision: 'allow',
+          reasonCode: 'owner_list_verified',
         });
         return res.status(200).json(memos);
       }
@@ -1331,21 +1664,41 @@ export default async function handler(req, res) {
     if (req.method === 'POST') {
       const userRole = String(body.role || req.headers?.['x-user-role'] || 'student').toLowerCase();
       if (isNoticeItem(body, req.url) && userRole !== 'instructor') {
-        recordAudit({
+        const entry = recordAudit({
+          requestId,
+          stage: 8,
           action: 'STUDENT_NOTICE_WRITE_DENIED',
           userId: currentUserId,
+          method: req.method,
+          path: pathname,
+          status: 403,
           decision: 'deny',
+          reasonCode: 'student_notice_forbidden',
         });
-        return res.status(403).json({ error: 'Forbidden: students cannot create or modify notices' });
+        return res.status(403).json({
+          error: 'Forbidden: students cannot create or modify notices',
+          requestId: entry.requestId,
+          checkedAt: entry.at,
+        });
       }
 
       if (body.owner_id && String(body.owner_id) !== currentUserId) {
-        recordAudit({
+        const entry = recordAudit({
+          requestId,
+          stage: 8,
           action: 'CROSS_ZONE_CREATE_DENIED',
           userId: currentUserId,
+          method: req.method,
+          path: pathname,
+          status: 403,
           decision: 'deny',
+          reasonCode: 'cross_zone_create_denied',
         });
-        return res.status(403).json({ error: 'Forbidden: cannot create memo for another owner' });
+        return res.status(403).json({
+          error: 'Forbidden: cannot create memo for another owner',
+          requestId: entry.requestId,
+          checkedAt: entry.at,
+        });
       }
 
       const newId = body.id || randomUUID();
@@ -1367,15 +1720,21 @@ export default async function handler(req, res) {
       });
 
       if (!response.ok) {
-        return res.status(response.status).json({ error: 'Failed to create memo' });
+        return res.status(response.status).json({ error: 'Failed to create memo', requestId });
       }
 
       saveBackupSnapshot(payload, true);
       recordAudit({
+        requestId,
+        stage: 8,
         action: 'CREATE_MEMO',
         userId: currentUserId,
         memoId: newId,
+        method: req.method,
+        path: pathname,
+        status: 201,
         decision: 'allow',
+        reasonCode: 'created',
       });
 
       return res.status(201).json({
@@ -1388,16 +1747,26 @@ export default async function handler(req, res) {
     if (req.method === 'PUT' || req.method === 'PATCH') {
       const userRole = String(body.role || req.headers?.['x-user-role'] || 'student').toLowerCase();
       if (isNoticeItem(body, req.url) && userRole !== 'instructor') {
-        recordAudit({
+        const entry = recordAudit({
+          requestId,
+          stage: 8,
           action: 'STUDENT_NOTICE_UPDATE_DENIED',
           userId: currentUserId,
+          method: req.method,
+          path: pathname,
+          status: 403,
           decision: 'deny',
+          reasonCode: 'student_notice_forbidden',
         });
-        return res.status(403).json({ error: 'Forbidden: students cannot modify notices' });
+        return res.status(403).json({
+          error: 'Forbidden: students cannot modify notices',
+          requestId: entry.requestId,
+          checkedAt: entry.at,
+        });
       }
 
       if (!memoId) {
-        return res.status(400).json({ error: 'Missing memo ID' });
+        return res.status(400).json({ error: 'Missing memo ID', requestId });
       }
 
       const checkRes = await fetch(
@@ -1406,38 +1775,68 @@ export default async function handler(req, res) {
       );
       const items = await checkRes.json();
       if (!checkRes.ok || !Array.isArray(items) || items.length === 0) {
-        return res.status(404).json({ error: 'Not Found' });
+        return res.status(404).json({ error: 'Not Found', requestId });
       }
       const existing = items[0];
 
       if (isNoticeItem(existing, req.url) && userRole !== 'instructor') {
-        recordAudit({
+        const entry = recordAudit({
+          requestId,
+          stage: 8,
           action: 'STUDENT_NOTICE_UPDATE_DENIED',
           userId: currentUserId,
           memoId,
+          method: req.method,
+          path: pathname,
+          status: 403,
           decision: 'deny',
+          reasonCode: 'student_notice_forbidden',
         });
-        return res.status(403).json({ error: 'Forbidden: students cannot modify instructor notices' });
+        return res.status(403).json({
+          error: 'Forbidden: students cannot modify instructor notices',
+          requestId: entry.requestId,
+          checkedAt: entry.at,
+        });
       }
 
       if (existing.owner_id && String(existing.owner_id) !== currentUserId) {
-        recordAudit({
+        const entry = recordAudit({
+          requestId,
+          stage: 8,
           action: 'CROSS_ZONE_UPDATE_DENIED',
           userId: currentUserId,
           memoId,
+          method: req.method,
+          path: pathname,
+          status: 403,
           decision: 'deny',
+          reasonCode: 'cross_zone_update_denied',
         });
-        return res.status(403).json({ error: 'Forbidden: not your memo' });
+        return res.status(403).json({
+          error: 'Forbidden: not your memo',
+          requestId: entry.requestId,
+          checkedAt: entry.at,
+        });
       }
 
       if (body.owner_id && String(body.owner_id) !== currentUserId) {
-        recordAudit({
+        const entry = recordAudit({
+          requestId,
+          stage: 8,
           action: 'OWNER_CHANGE_DENIED',
           userId: currentUserId,
           memoId,
+          method: req.method,
+          path: pathname,
+          status: 403,
           decision: 'deny',
+          reasonCode: 'owner_change_denied',
         });
-        return res.status(403).json({ error: 'Forbidden: cannot change owner_id' });
+        return res.status(403).json({
+          error: 'Forbidden: cannot change owner_id',
+          requestId: entry.requestId,
+          checkedAt: entry.at,
+        });
       }
 
       saveBackupSnapshot(existing, false);
@@ -1463,15 +1862,21 @@ export default async function handler(req, res) {
 
       const updated = await response.json();
       if (!response.ok || !Array.isArray(updated) || updated.length === 0) {
-        return res.status(404).json({ error: 'Not Found' });
+        return res.status(404).json({ error: 'Not Found', requestId });
       }
 
       const item = updated[0];
       recordAudit({
+        requestId,
+        stage: 8,
         action: 'UPDATE_MEMO',
         userId: currentUserId,
         memoId: item.id,
+        method: req.method,
+        path: pathname,
+        status: 200,
         decision: 'allow',
+        reasonCode: 'updated',
       });
 
       return res.status(200).json({
@@ -1483,7 +1888,7 @@ export default async function handler(req, res) {
 
     if (req.method === 'DELETE') {
       if (!memoId) {
-        return res.status(400).json({ error: 'Missing memo ID' });
+        return res.status(400).json({ error: 'Missing memo ID', requestId });
       }
 
       const checkRes = await fetch(
@@ -1492,22 +1897,32 @@ export default async function handler(req, res) {
       );
       const items = await checkRes.json();
       if (!checkRes.ok || !Array.isArray(items) || items.length === 0) {
-        return res.status(404).json({ error: 'Not Found' });
+        return res.status(404).json({ error: 'Not Found', requestId });
       }
       const existing = items[0];
 
       if (isNoticeItem(existing, req.url)) {
-        return res.status(403).json({ error: 'Forbidden: cannot delete notice' });
+        return res.status(403).json({ error: 'Forbidden: cannot delete notice', requestId });
       }
 
       if (existing.owner_id && String(existing.owner_id) !== currentUserId) {
-        recordAudit({
+        const entry = recordAudit({
+          requestId,
+          stage: 8,
           action: 'CROSS_ZONE_DELETE_DENIED',
           userId: currentUserId,
           memoId,
+          method: req.method,
+          path: pathname,
+          status: 403,
           decision: 'deny',
+          reasonCode: 'cross_zone_delete_denied',
         });
-        return res.status(403).json({ error: 'Forbidden: not your memo' });
+        return res.status(403).json({
+          error: 'Forbidden: not your memo',
+          requestId: entry.requestId,
+          checkedAt: entry.at,
+        });
       }
 
       saveBackupSnapshot(existing, false);
@@ -1521,22 +1936,28 @@ export default async function handler(req, res) {
       );
 
       if (!response.ok) {
-        return res.status(response.status).json({ error: 'Failed to delete memo' });
+        return res.status(response.status).json({ error: 'Failed to delete memo', requestId });
       }
 
       recordAudit({
+        requestId,
+        stage: 8,
         action: 'DELETE_MEMO',
         userId: currentUserId,
         memoId,
+        method: req.method,
+        path: pathname,
+        status: 200,
         decision: 'allow',
+        reasonCode: 'deleted',
       });
 
       return res.status(200).json({ success: true, id: memoId });
     }
 
-    return res.status(405).json({ error: 'Method Not Allowed' });
+    return res.status(405).json({ error: 'Method Not Allowed', requestId });
   } catch (err) {
     console.error('API Error:', err);
-    return res.status(500).json({ error: 'Internal Server Error' });
+    return res.status(500).json({ error: 'Internal Server Error', requestId });
   }
 }
