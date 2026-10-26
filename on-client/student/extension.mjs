@@ -9,12 +9,18 @@ export function createStudentView({ onChange } = {}) {
   let selectedEventId = null;
   let internalEventUpdate = false;
 
-  // 선택 기록 변경·새로고침 시 기존 AI 설명 초기화 및 늦게 도착한 이전 기록 응답 차단 상태
+  // 선택 기록 변경·새로고침 시 기존 AI 설명 및 조치 상태를 초기화·취소하고 늦게 도착한 응답 차단
   let explanationGeneration = 0;
   let activeExplanationEventId = null;
   let cancelledExplanationEventId = null;
   let clearedExplanationKey = null;
   let lastRenderedExplanationKey = null;
+
+  let actionResetGeneration = 0;
+  let activeActionEventId = null;
+  let cancelledActionEventId = null;
+  let clearedActionKey = null;
+  let lastRenderedActionKey = null;
 
   const buildExplanationKey = (event, explanation, checkedAt) => {
     const evId = typeof event?.id === 'string' ? event.id.trim() : '';
@@ -24,8 +30,20 @@ export function createStudentView({ onChange } = {}) {
     return `${evId}|${st}|${checkedAt ?? ''}|${sum}|${errCode}`;
   };
 
-  // 다른 기록을 선택하거나 목록을 다시 불러올 때 이전 AI 설명 상태를 초기화·취소
-  const resetExplanationForSelection = (nextEventId = null) => {
+  const buildActionKey = (input = {}) => {
+    const evId = typeof input?.event?.id === 'string' ? input.event.id.trim() : '';
+    const st = typeof input?.status === 'string' ? input.status : '';
+    const actId = typeof input?.actionId === 'string' ? input.actionId : '';
+    const reqId = typeof input?.receipt?.requestId === 'string' ? input.receipt.requestId : '';
+    const ver = input?.receipt?.version ?? '';
+    const obsAt = typeof input?.observation?.observedAt === 'string' ? input.observation.observedAt : '';
+    const eff = input?.observation?.effectApplied ?? '';
+    const errCode = typeof input?.error?.code === 'string' ? input.error.code : '';
+    return `${evId}|${st}|${actId}|${reqId}|${ver}|${obsAt}|${eff}|${errCode}`;
+  };
+
+  // 다른 기록을 선택하거나 목록을 다시 불러올 때 이전 AI 설명 및 조치 표시 상태를 함께 초기화·취소
+  const resetSelectionLinkedStates = (nextEventId = null) => {
     explanationGeneration += 1;
     if (activeExplanationEventId && activeExplanationEventId !== nextEventId) {
       cancelledExplanationEventId = activeExplanationEventId;
@@ -34,9 +52,18 @@ export function createStudentView({ onChange } = {}) {
     if (lastRenderedExplanationKey) {
       clearedExplanationKey = lastRenderedExplanationKey;
     }
+
+    actionResetGeneration += 1;
+    if (activeActionEventId && activeActionEventId !== nextEventId) {
+      cancelledActionEventId = activeActionEventId;
+    }
+    activeActionEventId = nextEventId;
+    if (lastRenderedActionKey) {
+      clearedActionKey = lastRenderedActionKey;
+    }
   };
 
-  const secretPattern = /(?:Bearer\s+\S+|sk-(?:proj-|ant-|svcacct-)?[A-Za-z0-9_-]{8,}|github_pat_\S+|-----BEGIN [A-Z ]*PRIVATE KEY-----|(?:api[_ -]?key|authorization|password|secret|token|비밀번호|토큰|열쇠)\s*[:=]\s*\S+)/i;
+  const secretPattern = /(?:Bearer\s+\S+|sk-(?:proj-|ant-|svcacct-)?[A-Za-z0-9_-]{8,}|github_pat_\S+|ac-on-[A-Za-z0-9_-]{20,}|-----BEGIN [A-Z ]*PRIVATE KEY-----|(?:api[_ -]?key|authorization|password|secret|token|비밀번호|토큰|열쇠)\s*[:=]\s*\S+)/i;
 
   const sanitizeText = (value, fallback = '확인 불가') => {
     if (typeof value !== 'string' || value.trim().length === 0) return fallback;
@@ -218,7 +245,7 @@ export function createStudentView({ onChange } = {}) {
       if (!internalEventUpdate) {
         eventFilters = { kind: 'all', appId: 'all', access: 'all' };
         selectedEventId = null;
-        resetExplanationForSelection(null);
+        resetSelectionLinkedStates(null);
       }
 
       const root = document.createElement('section');
@@ -270,7 +297,7 @@ export function createStudentView({ onChange } = {}) {
       if (status === 'loading') {
         eventFilters = { kind: 'all', appId: 'all', access: 'all' };
         selectedEventId = null;
-        resetExplanationForSelection(null);
+        resetSelectionLinkedStates(null);
         addText(root, 'p', '보안 기록을 불러오는 중입니다.');
         return root;
       }
@@ -278,7 +305,7 @@ export function createStudentView({ onChange } = {}) {
       if (status === 'error') {
         eventFilters = { kind: 'all', appId: 'all', access: 'all' };
         selectedEventId = null;
-        resetExplanationForSelection(null);
+        resetSelectionLinkedStates(null);
         const message = valueText(error?.message);
         const unverified = ['CONTRACT_MISMATCH', 'ENGINE_RESULT_UNVERIFIED'].includes(error?.code);
         addText(
@@ -295,7 +322,7 @@ export function createStudentView({ onChange } = {}) {
       if (status !== 'ok' || !Array.isArray(data)) {
         eventFilters = { kind: 'all', appId: 'all', access: 'all' };
         selectedEventId = null;
-        resetExplanationForSelection(null);
+        resetSelectionLinkedStates(null);
         addText(root, 'p', '기록을 불러오지 못했습니다 (확인 불가): 응답 데이터를 확인할 수 없습니다.');
         return root;
       }
@@ -418,9 +445,9 @@ export function createStudentView({ onChange } = {}) {
             detailBtn.textContent = `${eventId} 상세`;
             detailBtn.setAttribute('aria-label', `${eventId} 상세`);
             detailBtn.addEventListener('click', () => {
-              // 다른 기록을 선택할 때 기존 AI 설명 상태를 초기화·취소하여 이전 설명이나 늦은 응답이 남지 않게 처리
+              // 다른 기록을 선택할 때 기존 AI 설명 및 조치 상태를 초기화·취소하여 이전 표시가 남지 않게 처리
               if (selectedEventId !== eventId) {
-                resetExplanationForSelection(eventId);
+                resetSelectionLinkedStates(eventId);
               }
               selectedEventId = eventId;
               renderFilteredContent();
@@ -437,8 +464,8 @@ export function createStudentView({ onChange } = {}) {
           : null;
 
         if (selectedEventId && !selectedEvent) {
-          // 필터 변경으로 현재 선택했던 기록이 목록에서 제외된 경우 설명 상태도 함께 초기화
-          resetExplanationForSelection(null);
+          // 필터 변경으로 현재 선택했던 기록이 목록에서 제외된 경우 설명·조치 상태도 함께 초기화
+          resetSelectionLinkedStates(null);
         }
 
         if (selectedEvent) {
@@ -945,7 +972,6 @@ export function createStudentView({ onChange } = {}) {
       // 다른 기록을 선택했거나 새로고침으로 초기화된 이전 설명·늦게 도착한 이전 사건 응답 차단
       if (hasValidEventId) {
         if (!internalEventUpdate && status === 'loading' && selectedEventId === null) {
-          // 목록 상세 선택 없이 새 사건 설명 요청이 시작된 경우 현재 활성 사건 갱신
           if (activeExplanationEventId && activeExplanationEventId !== eventId) {
             cancelledExplanationEventId = activeExplanationEventId;
           }
@@ -1214,6 +1240,285 @@ export function createStudentView({ onChange } = {}) {
       addText(root, 'p', `사건 ID: ${eventId} · 아직 AI 설명을 요청하지 않았습니다. 보안 기록에서 AI 설명 요청 버튼을 직접 누르세요.`);
       return root;
     },
-    renderAction() { return '학생 구현 대기: 현재 사건·조치·실제 대상·사람 확인·ACK와 원천 효과·unknown을 구분하세요.'; },
+    renderAction(input = {}) {
+      const {
+        status,
+        event,
+        actionId,
+        target,
+        receipt,
+        observation,
+        message,
+        confirmationExpiresAt,
+        error,
+      } = input || {};
+
+      const root = document.createElement('section');
+      const addText = (parent, tag, value) => {
+        const node = document.createElement(tag);
+        node.textContent = value;
+        parent.append(node);
+        return node;
+      };
+
+      addText(root, 'h3', '보안 조치 요청 상태 및 실제 처리 결과');
+      addText(
+        root,
+        'p',
+        '학생 화면은 조치 버튼을 직접 만들거나 확인 티켓·POST 요청을 보내지 않습니다. 제공 화면의 조치 준비·사람 확인·결과 재조회·취소 버튼을 사용하세요.',
+      );
+
+      const hasEventId = Boolean(event && typeof event === 'object' && typeof event.id === 'string' && event.id.trim().length > 0);
+      const eventId = hasEventId ? sanitizeText(event.id, '') : '';
+      const currentKey = buildActionKey(input);
+
+      // 다른 기록 선택 또는 목록 새로고침 시 이전 조치 표시를 초기화하고 늦은 응답 차단 (action_refresh)
+      if (hasEventId && status && status !== 'idle') {
+        if (!internalEventUpdate && (status === 'loading' || status === 'prepared') && selectedEventId === null) {
+          if (activeActionEventId && activeActionEventId !== eventId) {
+            cancelledActionEventId = activeActionEventId;
+          }
+          activeActionEventId = eventId;
+          clearedActionKey = null;
+        }
+
+        const switchedInEventsList = selectedEventId !== null && selectedEventId !== eventId;
+        const switchedActiveAction = activeActionEventId !== null && activeActionEventId !== eventId;
+        const isCancelledStaleAction = cancelledActionEventId !== null
+          && cancelledActionEventId === eventId
+          && selectedEventId !== null
+          && selectedEventId !== eventId;
+        const isClearedActionSnapshot = clearedActionKey !== null && currentKey === clearedActionKey;
+
+        if (switchedInEventsList || switchedActiveAction || isCancelledStaleAction || isClearedActionSnapshot) {
+          const nextTargetId = selectedEventId || activeActionEventId || '새 기록';
+          addText(
+            root,
+            'p',
+            `조치 상태: 아직 미실행(idle) — 선택한 보안 기록이 변경(${nextTargetId})되었거나 새로고침되어 이전 사건(${eventId})의 조치 표시를 지우고 초기화했습니다(세대 #${actionResetGeneration}).`,
+          );
+          addText(
+            root,
+            'p',
+            '화면을 초기화해도 이미 서버에 전달된 요청이 있다면 그 효과가 저절로 취소되지는 않으므로 필요하면 결과를 별도로 확인하세요.',
+          );
+          return root;
+        }
+      }
+
+      if (!status || status === 'idle') {
+        addText(root, 'p', '조치 상태: 아직 미실행(idle) — 아직 준비하거나 요청한 보안 조치가 없습니다. AI의 조치 제안만으로 조치가 실행되지 않습니다.');
+        if (message) {
+          addText(root, 'p', `안내: ${sanitizeText(message)}`);
+        }
+        addText(root, 'p', '현재 기록의 지원 조치(supportedActions)가 비어 있으면 조치 준비 버튼이 표시되지 않는 것이 정상입니다.');
+        return root;
+      }
+
+      // receipt가 있을 때 현재 사건(event.id) 및 조치(actionId)와의 정합성 확인 (current_intent_binding)
+      const receiptEventId = typeof receipt?.eventId === 'string' && receipt.eventId.trim().length > 0 ? sanitizeText(receipt.eventId, '') : '';
+      const receiptActionId = typeof receipt?.actionId === 'string' && receipt.actionId.trim().length > 0 ? sanitizeText(receipt.actionId, '') : '';
+      const resolvedActionId = typeof actionId === 'string' && actionId.trim().length > 0 ? sanitizeText(actionId, '') : receiptActionId;
+
+      if ((eventId && receiptEventId && eventId !== receiptEventId) || (resolvedActionId && receiptActionId && resolvedActionId !== receiptActionId)) {
+        addText(
+          root,
+          'p',
+          '조치 상태: 요청 처리 안 됨(error) · 사건 또는 조치 ID가 현재 선택된 의도(intent)와 일치하지 않아 이전 결과를 표시하지 않습니다(완료 아님·미실행). 현재 사건에서 다시 준비하세요.',
+        );
+        return root;
+      }
+
+      const resolvedEventId = eventId || receiptEventId;
+      const requestId = typeof receipt?.requestId === 'string' && receipt.requestId.trim().length > 0
+        ? sanitizeText(receipt.requestId, '')
+        : '';
+      const receiptId = typeof receipt?.receiptId === 'string' && receipt.receiptId.trim().length > 0
+        ? sanitizeText(receipt.receiptId, '')
+        : '';
+      const versionText = Number.isSafeInteger(receipt?.version)
+        ? String(receipt.version)
+        : (typeof receipt?.version === 'string' && receipt.version.trim().length > 0 ? sanitizeText(receipt.version, '') : '');
+
+      if (resolvedEventId) {
+        activeActionEventId = resolvedEventId;
+      }
+      lastRenderedActionKey = currentKey;
+
+      // 성공적으로 그린 바깥 요소에 data-student-action-event와 data-student-action-request 부착
+      if (resolvedEventId) {
+        root.setAttribute('data-student-action-event', resolvedEventId);
+      }
+      if (requestId) {
+        root.setAttribute('data-student-action-request', requestId);
+      }
+
+      // 상태별 표시 문구 분기
+      if (status === 'loading') {
+        addText(
+          root,
+          'p',
+          '조치 상태: 조치 준비 또는 결과 조회 중(loading) — 연동 시스템(원천)에 조치 준비 정보나 처리 결과를 확인하고 있습니다. 아직 완료되지 않았으며 실행 성공이 아닙니다(완료 아님).',
+        );
+      } else if (status === 'prepared') {
+        addText(
+          root,
+          'p',
+          '조치 상태: 준비됨·미실행(prepared) — 조치 대상과 확인 기한만 준비된 상태이며 아직 서버에 집행을 요청하지 않았습니다(미실행·완료 아님).',
+        );
+        addText(
+          root,
+          'p',
+          '사건 ID·근거 ID·조치·실제 대상과 확인 기한을 직접 확인한 뒤, 기한 안에 제공 화면의 「대상과 조치를 확인했으며 집행합니다」 버튼을 눌러야 실제 요청이 전송됩니다.',
+        );
+      } else if (status === 'executing') {
+        addText(
+          root,
+          'p',
+          '조치 상태: 서버에 전달 중(executing) — 사람 확인 후 서버에 조치 요청을 전송하고 있습니다. 아직 결과가 없으며 처리 완료나 성공이 아닙니다(완료 아님).',
+        );
+      } else if (status === 'pending') {
+        addText(
+          root,
+          'p',
+          '조치 상태: 서버 접수·처리 중(pending) — 서버가 요청을 접수(ACK)하여 처리 중입니다. 서버가 받았다는 접수 응답(ACK)은 실제 조치 효과가 적용되었다는 뜻이 아니며 아직 완료되지 않았습니다(완료 아님). 제공 화면의 「연동 시스템 결과만 재조회」 버튼으로 실제 효과를 확인하세요.',
+        );
+      } else if (status === 'succeeded') {
+        const effectVerified = Boolean(
+          observation
+          && typeof observation === 'object'
+          && observation.effectApplied === true
+          && typeof observation.observedAt === 'string'
+          && observation.observedAt.trim().length > 0,
+        );
+        if (effectVerified) {
+          addText(
+            root,
+            'p',
+            '조치 상태: 효과 확인(succeeded) — 연동 시스템(원천)에서 실제 보안 조치 효과 적용이 확인되었습니다.',
+          );
+          addText(
+            root,
+            'p',
+            `원천 관측 시각(observedAt): ${sanitizeText(observation.observedAt)} · 실제 효과 적용 여부: effectApplied: true`,
+          );
+        } else {
+          // observation.effectApplied === true가 아니면 성공으로 표시하지 않고 결과 불명으로 처리
+          addText(
+            root,
+            'p',
+            '조치 상태: 결과 불명(unknown) — 원천의 실제 효과 적용(observation.effectApplied: true)이 확인되지 않아 성공으로 인정하지 않습니다(효과 없음으로 판단 금지 · 완료 아님). 제공 화면의 결과 재조회 버튼으로 결과만 다시 확인하세요.',
+          );
+        }
+      } else if (status === 'denied') {
+        const denyMsg = sanitizeText(error?.message || message, '현재 연동 시스템 정책이 이 조치를 허용하지 않습니다.');
+        addText(root, 'p', `조치 상태: 거절(denied) — 연동 시스템(원천)이 조치를 거절했습니다(미적용): ${denyMsg}`);
+      } else if (status === 'failed') {
+        const failMsg = sanitizeText(error?.message || message, '연동 시스템에서 조치 처리에 실패했습니다.');
+        addText(root, 'p', `조치 상태: 실패(failed) — 연동 시스템(원천) 처리 실패(미적용): ${failMsg}`);
+      } else if (status === 'unknown') {
+        const unknownMsg = sanitizeText(
+          error?.message || message,
+          '조치 결과를 아직 확인할 수 없습니다.',
+        );
+        addText(
+          root,
+          'p',
+          `조치 상태: 결과 불명(unknown) · 효과 없음으로 판단 금지 — ${unknownMsg} 성공이나 효과 없음으로 단정하지 말고, 중복 집행 없이 제공 화면의 「연동 시스템 결과만 재조회」 버튼으로 결과만 재조회하세요.`,
+        );
+      } else if (status === 'expired') {
+        const expMsg = sanitizeText(
+          error?.message || message,
+          '사람 확인 기한이 지났습니다.',
+        );
+        addText(
+          root,
+          'p',
+          `조치 상태: 확인 기한 지남(expired) · 다시 준비 필요 — ${expMsg} 이번 준비로는 집행할 수 없으며 조치는 실행되지 않았습니다(미실행). 현재 사건에서 제공 화면의 「조치 준비」 버튼으로 다시 준비하세요.`,
+        );
+      } else if (status === 'error') {
+        const safeCode = sanitizeText(error?.code, 'ACTION_RESULT_UNVERIFIED');
+        const safeMsg = sanitizeText(error?.message || message, '요청이 처리되지 않았습니다.');
+        addText(
+          root,
+          'p',
+          `조치 상태: 요청 처리 안 됨(error) · 오류 코드(code): ${safeCode} — ${safeMsg} (실행 성공 아님)`,
+        );
+      } else {
+        addText(
+          root,
+          'p',
+          '조치 상태: 결과 불명(unknown) · 효과 없음으로 판단 금지 — 알 수 없는 상태이므로 성공이나 효과 없음으로 단정하지 말고 결과만 재조회하세요.',
+        );
+      }
+
+      // 전달받은 범위의 상세 식별 정보 표시
+      const detailList = document.createElement('ul');
+      if (resolvedEventId) {
+        addText(detailList, 'li', `사건 ID(event.id): ${resolvedEventId}`);
+      }
+      if (Array.isArray(event?.evidence) && event.evidence.length > 0) {
+        const evIds = event.evidence
+          .map((ev) => (typeof ev?.id === 'string' && ev.id.trim().length > 0 ? sanitizeText(ev.id, '') : ''))
+          .filter(Boolean);
+        if (evIds.length > 0) {
+          addText(detailList, 'li', `근거 ID(event.evidence): ${evIds.join(', ')}`);
+        }
+      }
+      if (resolvedActionId) {
+        addText(detailList, 'li', `조치 ID(actionId): ${resolvedActionId}`);
+      }
+      if (target && typeof target === 'object') {
+        if (typeof target.id === 'string' && target.id.trim().length > 0) {
+          addText(detailList, 'li', `실제 대상 ID(target.id): ${sanitizeText(target.id)}`);
+        }
+        if (target.generation !== undefined && target.generation !== null) {
+          addText(detailList, 'li', `대상 세대(target.generation): ${String(target.generation)}`);
+        }
+      }
+      if (typeof confirmationExpiresAt === 'string' && confirmationExpiresAt.trim().length > 0) {
+        addText(detailList, 'li', `확인 기한(confirmationExpiresAt): ${sanitizeText(confirmationExpiresAt)}`);
+      }
+      if (requestId) {
+        addText(detailList, 'li', `요청 ID(receipt.requestId): ${requestId}`);
+      }
+      if (receiptId) {
+        addText(detailList, 'li', `접수 영수증 ID(receipt.receiptId): ${receiptId}`);
+      }
+      if (versionText) {
+        addText(detailList, 'li', `버전(receipt.version): ${versionText}`);
+      }
+      if (typeof receipt?.replayed === 'boolean') {
+        addText(
+          detailList,
+          'li',
+          `중복 요청 여부(receipt.replayed): ${String(receipt.replayed)}${receipt.replayed ? ' (이미 접수된 동일 요청 재응답 · 중복 실행 방지됨)' : ''}`,
+        );
+      }
+      if (receipt?.superseded === true) {
+        addText(detailList, 'li', '이전 조회 대체 여부(superseded): true — 이전 조회는 최신 결과를 대신하지 않습니다.');
+      }
+      if (observation && typeof observation === 'object') {
+        if (typeof observation.observedAt === 'string' && observation.observedAt.trim().length > 0) {
+          addText(detailList, 'li', `관측 시각(observation.observedAt): ${sanitizeText(observation.observedAt)}`);
+        }
+        if (typeof observation.effectApplied === 'boolean') {
+          addText(detailList, 'li', `효과 적용 여부(observation.effectApplied): effectApplied: ${String(observation.effectApplied)}`);
+        }
+      }
+      if (error && typeof error === 'object' && status !== 'error') {
+        const errCode = sanitizeText(error.code, '');
+        const errMsg = sanitizeText(error.message, '');
+        if (errCode || errMsg) {
+          addText(detailList, 'li', `오류 정보: ${errCode ? `${errCode}: ` : ''}${errMsg}`);
+        }
+      }
+
+      if (detailList.firstChild) {
+        root.append(detailList);
+      }
+
+      return root;
+    },
   };
 }
