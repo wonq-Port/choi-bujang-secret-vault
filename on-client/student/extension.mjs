@@ -9,6 +9,33 @@ export function createStudentView({ onChange } = {}) {
   let selectedEventId = null;
   let internalEventUpdate = false;
 
+  // 선택 기록 변경·새로고침 시 기존 AI 설명 초기화 및 늦게 도착한 이전 기록 응답 차단 상태
+  let explanationGeneration = 0;
+  let activeExplanationEventId = null;
+  let cancelledExplanationEventId = null;
+  let clearedExplanationKey = null;
+  let lastRenderedExplanationKey = null;
+
+  const buildExplanationKey = (event, explanation, checkedAt) => {
+    const evId = typeof event?.id === 'string' ? event.id.trim() : '';
+    const st = typeof explanation?.status === 'string' ? explanation.status : '';
+    const sum = typeof explanation?.data?.summary === 'string' ? explanation.data.summary : '';
+    const errCode = typeof explanation?.error?.code === 'string' ? explanation.error.code : '';
+    return `${evId}|${st}|${checkedAt ?? ''}|${sum}|${errCode}`;
+  };
+
+  // 다른 기록을 선택하거나 목록을 다시 불러올 때 이전 AI 설명 상태를 초기화·취소
+  const resetExplanationForSelection = (nextEventId = null) => {
+    explanationGeneration += 1;
+    if (activeExplanationEventId && activeExplanationEventId !== nextEventId) {
+      cancelledExplanationEventId = activeExplanationEventId;
+    }
+    activeExplanationEventId = nextEventId;
+    if (lastRenderedExplanationKey) {
+      clearedExplanationKey = lastRenderedExplanationKey;
+    }
+  };
+
   const secretPattern = /(?:Bearer\s+\S+|sk-(?:proj-|ant-|svcacct-)?[A-Za-z0-9_-]{8,}|github_pat_\S+|-----BEGIN [A-Z ]*PRIVATE KEY-----|(?:api[_ -]?key|authorization|password|secret|token|비밀번호|토큰|열쇠)\s*[:=]\s*\S+)/i;
 
   const sanitizeText = (value, fallback = '확인 불가') => {
@@ -191,6 +218,7 @@ export function createStudentView({ onChange } = {}) {
       if (!internalEventUpdate) {
         eventFilters = { kind: 'all', appId: 'all', access: 'all' };
         selectedEventId = null;
+        resetExplanationForSelection(null);
       }
 
       const root = document.createElement('section');
@@ -242,6 +270,7 @@ export function createStudentView({ onChange } = {}) {
       if (status === 'loading') {
         eventFilters = { kind: 'all', appId: 'all', access: 'all' };
         selectedEventId = null;
+        resetExplanationForSelection(null);
         addText(root, 'p', '보안 기록을 불러오는 중입니다.');
         return root;
       }
@@ -249,6 +278,7 @@ export function createStudentView({ onChange } = {}) {
       if (status === 'error') {
         eventFilters = { kind: 'all', appId: 'all', access: 'all' };
         selectedEventId = null;
+        resetExplanationForSelection(null);
         const message = valueText(error?.message);
         const unverified = ['CONTRACT_MISMATCH', 'ENGINE_RESULT_UNVERIFIED'].includes(error?.code);
         addText(
@@ -265,6 +295,7 @@ export function createStudentView({ onChange } = {}) {
       if (status !== 'ok' || !Array.isArray(data)) {
         eventFilters = { kind: 'all', appId: 'all', access: 'all' };
         selectedEventId = null;
+        resetExplanationForSelection(null);
         addText(root, 'p', '기록을 불러오지 못했습니다 (확인 불가): 응답 데이터를 확인할 수 없습니다.');
         return root;
       }
@@ -387,6 +418,10 @@ export function createStudentView({ onChange } = {}) {
             detailBtn.textContent = `${eventId} 상세`;
             detailBtn.setAttribute('aria-label', `${eventId} 상세`);
             detailBtn.addEventListener('click', () => {
+              // 다른 기록을 선택할 때 기존 AI 설명 상태를 초기화·취소하여 이전 설명이나 늦은 응답이 남지 않게 처리
+              if (selectedEventId !== eventId) {
+                resetExplanationForSelection(eventId);
+              }
               selectedEventId = eventId;
               renderFilteredContent();
               notifyChange();
@@ -400,6 +435,11 @@ export function createStudentView({ onChange } = {}) {
         const selectedEvent = selectedEventId
           ? filteredEvents.find((ev) => ev?.id === selectedEventId)
           : null;
+
+        if (selectedEventId && !selectedEvent) {
+          // 필터 변경으로 현재 선택했던 기록이 목록에서 제외된 경우 설명 상태도 함께 초기화
+          resetExplanationForSelection(null);
+        }
 
         if (selectedEvent) {
           const detailBox = document.createElement('section');
@@ -900,9 +940,42 @@ export function createStudentView({ onChange } = {}) {
       const status = explanation?.status;
       const hasValidEventId = Boolean(event && typeof event === 'object' && typeof event.id === 'string' && event.id.trim().length > 0);
       const eventId = hasValidEventId ? sanitizeText(event.id, '') : '';
+      const currentKey = buildExplanationKey(event, explanation, checkedAt);
+
+      // 다른 기록을 선택했거나 새로고침으로 초기화된 이전 설명·늦게 도착한 이전 사건 응답 차단
+      if (hasValidEventId) {
+        if (!internalEventUpdate && status === 'loading' && selectedEventId === null) {
+          // 목록 상세 선택 없이 새 사건 설명 요청이 시작된 경우 현재 활성 사건 갱신
+          if (activeExplanationEventId && activeExplanationEventId !== eventId) {
+            cancelledExplanationEventId = activeExplanationEventId;
+          }
+          activeExplanationEventId = eventId;
+          clearedExplanationKey = null;
+        }
+
+        const switchedInEventsList = selectedEventId !== null && selectedEventId !== eventId;
+        const switchedActiveEvent = activeExplanationEventId !== null && activeExplanationEventId !== eventId;
+        const isCancelledStaleEvent = cancelledExplanationEventId !== null
+          && cancelledExplanationEventId === eventId
+          && selectedEventId !== null
+          && selectedEventId !== eventId;
+        const isClearedSnapshot = clearedExplanationKey !== null && currentKey === clearedExplanationKey;
+
+        if (switchedInEventsList || switchedActiveEvent || isCancelledStaleEvent || isClearedSnapshot) {
+          const targetId = selectedEventId || activeExplanationEventId || '새 기록';
+          addText(
+            root,
+            'p',
+            `선택한 보안 기록이 변경(${targetId})되었거나 새로고침되어 이전 사건(${eventId})의 AI 설명을 초기화·취소했습니다. 늦게 도착한 이전 사건의 응답은 새 기록에 붙지 않습니다.`,
+          );
+          addText(root, 'p', '현재 선택한 보안 기록에 대해 AI 설명을 새로 요청하세요. 기록은 그대로입니다.');
+          return root;
+        }
+      }
 
       // 1) explanation.status가 error이면 event가 null이어도 안전한 오류 코드·메시지와 실패 이유를 먼저 표시
       if (status === 'error') {
+        lastRenderedExplanationKey = currentKey;
         const safeCode = sanitizeText(explanation?.error?.code, 'AI_REQUEST_UNVERIFIED');
         const safeMsg = sanitizeText(explanation?.error?.message, 'AI 설명을 불러오지 못했습니다.');
         if (eventId) {
@@ -925,7 +998,9 @@ export function createStudentView({ onChange } = {}) {
       }
 
       if (status === 'loading') {
-        addText(root, 'p', `사건 ID: ${eventId} · 선택한 기록의 AI 설명을 요청하는 중입니다.`);
+        activeExplanationEventId = eventId;
+        lastRenderedExplanationKey = currentKey;
+        addText(root, 'p', `사건 ID: ${eventId} · 선택한 기록의 AI 설명을 요청하는 중입니다 (요청 세대 #${explanationGeneration}).`);
         return root;
       }
 
@@ -1034,6 +1109,9 @@ export function createStudentView({ onChange } = {}) {
           );
           return root;
         }
+
+        activeExplanationEventId = eventId;
+        lastRenderedExplanationKey = currentKey;
 
         // 2) 성공한 설명에만 data-student-explanation-event=event.id 지정
         root.setAttribute('data-student-explanation-event', eventId);
