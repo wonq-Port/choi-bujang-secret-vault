@@ -1,0 +1,35 @@
+{
+  "schema": "aleph.student.appearance.v1",
+  "appName": "복수를결심한인공능지",
+  "baseStarterName": "케셰브 (0.2.11)",
+  "layoutType": "control-dashboard-4cards-and-trends",
+  "packagingType": "basic-stage-then-inno-setup-user-install",
+  "coreFeaturesOrder": [
+    {
+      "rank": 1,
+      "id": "top-status-cards-4",
+      "title": "핵심 기능 1 · 관제 대시보드 상단 상태 카드 4종 (SDP 연결 분리 · 기기/세션 · XDR 알림 · 내 PC 자원 요약)"
+    },
+    {
+      "rank": 2,
+      "id": "pc-resource-trend-comparator",
+      "title": "핵심 기능 2 · 내 PC 상태(CPU·메모리·디스크) 일반 권한 측정 및 직전 측정 대비 추이 비교(Δ)·상태 해석기"
+    },
+    {
+      "rank": 3,
+      "id": "pc-security-posture-readonly",
+      "title": "핵심 기능 3 · 이 PC의 네트워크 구성 · 방화벽 설정(읽기 전용) · Windows 기록(System·Application 최근 24시간 경고·오류 건수) 점검"
+    }
+  ],
+  "badges": {
+    "measured": "[실측값 · 내 PC]",
+    "example": "[예시값 · 설명용(실제 조회 아님)]",
+    "unverifiable": "[확인 불가]"
+  },
+  "constraints": {
+    "requireAdmin": false,
+    "firewallReadOnly": true,
+    "eventLogDisclaimer": "이 건수는 일반 운영체제 로그 통계이며 침해나 공격 탐지 결과가 아닙니다.",
+    "separateSdpFromLocalPc": true
+  }
+}

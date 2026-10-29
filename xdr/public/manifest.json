@@ -1,0 +1,19 @@
+{
+  "name": "BYTE BACK 보호된 자료실 접속 앱",
+  "short_name": "보호자료실",
+  "description": "서버·판정기 기기 승인과 요청 서명이 결합된 보호 자료실 설치형 웹앱(PWA)입니다. 설치 표시만으로 기기 확인이 완료되지 않습니다.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#101a28",
+  "theme_color": "#8ad8df",
+  "lang": "ko",
+  "icons": [
+    {
+      "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'%3E%3Crect width='192' height='192' rx='32' fill='%23101a28'/%3E%3Cpath d='M96 36l52 24v36c0 34-22 64-52 76-30-12-52-42-52-76V60l52-24z' fill='%238ad8df'/%3E%3C/svg%3E",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}
