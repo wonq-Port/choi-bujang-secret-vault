@@ -1,0 +1,9 @@
+{
+  "schema": "keshev.personal-config.v1",
+  "appName": "케셰브",
+  "ai": {
+    "enabled": false,
+    "provider": "openai",
+    "model": "gpt-6.1-sol"
+  }
+}

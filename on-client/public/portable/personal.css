@@ -121,3 +121,51 @@ li { padding: .25rem 0; overflow-wrap: anywhere; white-space: pre-wrap; }
   .workspace { grid-template-columns: 1fr; }
   .facts { grid-template-columns: 100px 1fr; }
 }
+
+/* 와인색 XDR 상단 브랜드 및 에디토리얼 타이포그래피 */
+.brand-back {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #741f3a;
+  text-decoration: none;
+  padding: 6px 14px;
+  border-radius: 4px 10px 10px 10px;
+  border: 1px solid #d5c8c2;
+  background: #fff;
+  transition: all 0.2s ease;
+}
+.brand-back:hover {
+  background: #741f3a;
+  color: #fff;
+  border-color: #741f3a;
+  transform: translateX(-2px);
+}
+.brand-title-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: 'Gowun Batang', serif;
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #32151f;
+}
+.brand-mark-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #7c2942;
+  box-shadow: 0 0 0 4px #ead8de;
+}
+.sub-tag {
+  font-family: 'Noto Sans KR', sans-serif;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  padding: 3px 6px;
+  border-radius: 3px;
+  background: #741f3a;
+  color: #fff;
+}
+h1, h2, h3 {
+  font-family: 'Gowun Batang', serif;
+}

@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
+  <meta name="referrer" content="no-referrer">
+  <title>개인 AI · 내 보안 앱</title>
+  <link rel="stylesheet" href="/portable/personal.css">
+  <script type="module" src="/portable/personal.js"></script>
+</head>
+<body>
+  <a class="skip-link" href="#main">본문으로 건너뛰기</a>
+  <header class="topbar">
+    <a href="/">내 보안 앱으로</a>
+    <span id="app-name">내 보안 앱</span>
+    <span class="badge">개인 AI · 설명 전용</span>
+  </header>
+  <main id="main" tabindex="-1">
+    <div class="heading">
+      <div><p class="eyebrow">PERSONAL AI</p><h1>보안 이벤트를 근거와 함께 이해하기</h1></div>
+      <div class="actions"><button id="refresh" type="button">상태 다시 확인</button><button id="cancel" type="button" disabled>요청 취소</button></div>
+    </div>
+    <p class="notice">개인 AI는 선택한 보안 이벤트를 설명하고 대응 방안을 제안합니다. 학원 AI나 공식 평가가 아니며, 보안 조치를 실행하지 않습니다. 페이지를 열거나 상태를 확인하는 것만으로 AI 설명을 요청하지 않습니다.</p>
+    <p id="feedback" class="feedback" role="status" aria-live="polite">연결 상태와 보안 이벤트 목록을 확인하고 있습니다.</p>
+    <section class="card" aria-labelledby="connection-title">
+      <h2 id="connection-title">개인 AI 연결 상태</h2>
+      <div id="connection"><p>상태 확인 중</p></div>
+      <p class="muted">연결 설정은 이 PC의 실행 환경에서 관리합니다. 이 화면에는 API 키나 설정값을 입력하지 않습니다. 자동 재시도는 하지 않습니다.</p>
+    </section>
+    <div class="workspace">
+      <section class="card" aria-labelledby="events-title">
+        <h2 id="events-title">설명할 보안 이벤트 선택</h2>
+        <p id="events-status" class="muted">보안 이벤트 목록 확인 중</p>
+        <div id="events" class="events"></div>
+      </section>
+      <section class="card" aria-labelledby="event-title">
+        <h2 id="event-title">선택한 보안 이벤트와 근거</h2>
+        <div id="event-detail"><p class="muted">목록에서 보안 이벤트 한 개를 선택하세요.</p></div>
+        <div class="consent-box">
+          <label><input id="consent" type="checkbox" disabled><span>현재 보안 이벤트의 근거를 개인 AI 공급자에게 전송하며, 본인의 사용량과 비용이 발생할 수 있음을 확인했습니다. 학원 AI·공식 판정이 아니며, 조치를 실행하지 않습니다.</span></label>
+          <button id="explain" class="primary" type="button" disabled>선택한 보안 이벤트 설명 요청</button>
+        </div>
+      </section>
+    </div>
+    <section class="card result" aria-labelledby="result-title">
+      <h2 id="result-title">개인 AI 설명</h2>
+      <p class="muted">제안은 사람이 근거를 검토한 뒤 결정해야 합니다. 설명을 요청해도 접근 권한·세션·기기 상태는 변경되지 않습니다.</p>
+      <div id="result" aria-live="polite"><p>아직 설명을 요청하지 않았습니다.</p></div>
+    </section>
+  </main>
+</body>
+</html>
