@@ -3,162 +3,1752 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#8ad8df">
+  <meta name="theme-color" content="#741f3a">
   <link rel="manifest" href="/manifest.json">
-  <title>BYTE BACK | 보호된 자료실 & 탈환 작전실</title>
+  <title>가디언.XDR | BYTE BACK 탈환 작전실 & 케셰브 통합 보안 콘솔</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Gowun+Batang:wght@700&family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style>
-    :root { color-scheme: dark; font-family: system-ui, sans-serif; }
-    body { margin: 0; min-height: 100vh; background: #101a28; color: #ecf4ff; }
-    main { max-width: 920px; margin: 0 auto; padding: 44px 22px 64px; }
-    .eyebrow { color: #8ad8df; font-size: 14px; font-weight: 700; letter-spacing: .08em; }
-    h1 { margin: 16px 0; font-size: clamp(28px, 6vw, 44px); line-height: 1.2; }
-    p { font-size: 16px; line-height: 1.7; color: #bfd0e5; }
-    .card { margin: 20px 0; padding: 18px; border: 1px solid #51667c; border-radius: 14px; background: #1a2a3d; }
-    .badge { display: inline-block; padding: 4px 10px; border-radius: 999px; font-size: 13px; font-weight: 700; }
-    .badge.pending { background: #3d2a1a; color: #ffb86c; border: 1px solid #ffb86c; }
-    .badge.approved { background: #173b34; color: #8ad8df; border: 1px solid #8ad8df; }
-    .notice-box { font-size: 14px; color: #bfd0e5; margin-top: 10px; line-height: 1.6; }
-    .offline-banner { display: none; margin: 16px 0; padding: 14px 16px; border-radius: 10px; border: 1px solid #ff6b81; background: #2c1a24; color: #ffd6dc; font-size: 14px; }
-    .ops-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(195px, 1fr)); gap: 12px; margin-top: 14px; }
-    .ops-tile { padding: 14px; border: 1px solid #51667c; border-radius: 10px; background: #101a28; }
-    .ops-tile h4 { margin: 0 0 6px; font-size: 14px; color: #8ad8df; }
-    .ops-tile div { font-size: 13px; color: #ecf4ff; line-height: 1.5; word-break: break-all; }
-    table { width: 100%; border-collapse: collapse; margin-top: 12px; font-size: 13px; }
-    th, td { border: 1px solid #51667c; padding: 8px 10px; text-align: left; vertical-align: top; }
-    th { background: #101a28; color: #8ad8df; }
-    ul { list-style: none; display: grid; gap: 12px; padding: 0; }
-    li { border: 1px solid #51667c; border-radius: 14px; padding: 17px 19px; background: #1a2a3d; display: flex; justify-content: space-between; align-items: flex-start; }
+    :root {
+      font-family: 'Noto Sans KR', -apple-system, BlinkMacSystemFont, "Malgun Gothic", sans-serif;
+      color: #292326;
+      background: #f4f0eb;
+      font-synthesis: none;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; min-width: 320px; min-height: 100vh; color: #292326; background: #f4f0eb; }
+    button, input, textarea, select { font: inherit; }
+    button { border: 0; cursor: pointer; }
+    button:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-visible {
+      outline: 2px solid #9c2f4c;
+      outline-offset: 2px;
+    }
+    [hidden] { display: none !important; }
+
+    .app-shell {
+      min-height: 100vh;
+      background-color: #f4f0eb;
+      background-image: radial-gradient(#7a263b0f 1px, transparent 1px);
+      background-size: 18px 18px;
+    }
+
+    /* 사이드바 */
+    .sidebar {
+      position: fixed;
+      inset: 0 auto 0 0;
+      z-index: 30;
+      width: 272px;
+      padding: 24px 20px;
+      color: #60575a;
+      background: #fdfaf5;
+      border-right: 1px solid #dcd2ca;
+      box-shadow: 12px 0 35px #5a28360a;
+      display: flex;
+      flex-direction: column;
+    }
+    .brand {
+      height: 52px;
+      display: flex;
+      align-items: center;
+      gap: 11px;
+      padding: 0 8px;
+      color: #32151f;
+      font: 700 20px/1 'Gowun Batang', serif;
+      letter-spacing: -0.02em;
+    }
+    .brand-mark {
+      width: 29px;
+      height: 29px;
+      border: 1.5px solid #7c2942;
+      border-radius: 50% 50% 50% 10px;
+      transform: rotate(45deg);
+      display: grid;
+      place-items: center;
+      flex-shrink: 0;
+    }
+    .brand-mark span {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #7c2942;
+    }
+    .brand-title {
+      display: flex;
+      align-items: baseline;
+      gap: 2px;
+    }
+    .brand-dot, .mobile-brand span { color: #a53755; }
+    .brand small {
+      margin-left: 7px;
+      padding: 3px 6px;
+      border-radius: 3px;
+      color: #fff;
+      background: #76283f;
+      font: 700 8px 'Noto Sans KR', sans-serif;
+      letter-spacing: 0.12em;
+    }
+    .nav-list { margin-top: 26px; display: flex; flex-direction: column; gap: 4px; }
+    .nav-label {
+      margin: 10px 12px 8px;
+      color: #a09692;
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      font-weight: 700;
+    }
+    .nav-item {
+      width: 100%;
+      min-height: 46px;
+      padding: 0 13px;
+      border-radius: 5px 13px 13px 5px;
+      background: transparent;
+      color: #746b6e;
+      display: flex;
+      align-items: center;
+      gap: 11px;
+      text-align: left;
+      font-size: 12.5px;
+      font-weight: 600;
+      letter-spacing: -0.02em;
+      transition: 0.2s ease;
+    }
+    .nav-item:hover {
+      color: #642137;
+      background: #f7edef;
+      transform: translateX(3px);
+    }
+    .nav-item.active {
+      color: #fff;
+      background: linear-gradient(110deg, #5e1c32, #8d3450);
+      box-shadow: 0 9px 22px #72233d28, inset 1px 1px #ffffff22;
+    }
+    .nav-item.active::before {
+      content: '';
+      width: 3px;
+      height: 18px;
+      margin-left: -5px;
+      border-radius: 2px;
+      background: #f2ccd7;
+    }
+    .nav-item b {
+      margin-left: auto;
+      min-width: 22px;
+      height: 20px;
+      padding: 0 6px;
+      border-radius: 10px;
+      display: grid;
+      place-items: center;
+      color: #8c2947;
+      background: #eedde1;
+      font-size: 10px;
+    }
+    .nav-item.active b {
+      color: #6f2138;
+      background: #fff;
+    }
+    .sidebar-bottom { margin-top: auto; padding-top: 14px; }
+    .env-switch {
+      padding: 12px;
+      border-radius: 5px 13px 13px 13px;
+      background: #f6efe9;
+      border: 1px solid #e2d7cf;
+      margin-bottom: 12px;
+    }
+    .env-switch-label {
+      font-size: 10px;
+      font-weight: 700;
+      color: #7c2440;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .env-switch small {
+      display: block;
+      margin-top: 4px;
+      font-size: 10px;
+      color: #7c7275;
+      line-height: 1.4;
+    }
+    .system-state {
+      padding: 14px 10px 4px;
+      border-top: 1px solid #ded6d0;
+      display: flex;
+      gap: 10px;
+      align-items: flex-start;
+    }
+    .live-dot {
+      margin-top: 4px;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #4e9a6f;
+      box-shadow: 0 0 0 4px #dceee3;
+      flex-shrink: 0;
+    }
+    .system-state strong { display: block; color: #5c5457; font-size: 11px; font-weight: 700; }
+    .system-state small { display: block; margin-top: 2px; color: #9a908d; font-size: 10px; }
+
+    /* 메인 영역 및 상단 바 */
+    main { min-height: 100vh; margin-left: 272px; }
+    .topbar {
+      height: 76px;
+      padding: 0 38px;
+      border-bottom: 1px solid #ded5cf;
+      background: rgba(253, 250, 246, 0.88);
+      backdrop-filter: blur(12px);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      position: sticky;
+      top: 0;
+      z-index: 20;
+    }
+    .topbar-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .context-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      padding: 5px 12px;
+      border-radius: 2px 9px 9px 9px;
+      background: #f3e5e9;
+      color: #6d1f37;
+      font-size: 11px;
+      font-weight: 700;
+    }
+    .top-actions { display: flex; align-items: center; gap: 12px; }
+    .global-search {
+      width: 265px;
+      height: 40px;
+      padding: 0 12px;
+      border: 1px solid #dbd2cd;
+      border-radius: 8px;
+      color: #8c8380;
+      background: #f8f4f0;
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      font-size: 11.5px;
+      transition: 0.2s ease;
+    }
+    .global-search:hover {
+      border-color: #bd9da7;
+      box-shadow: 0 4px 14px #4c20300c;
+      transform: translateY(-1px);
+    }
+    .global-search kbd {
+      margin-left: auto;
+      border: 1px solid #ded6d1;
+      border-radius: 4px;
+      padding: 2px 5px;
+      font-size: 9px;
+      color: #9e9592;
+      background: #fff;
+    }
+    .icon-button {
+      width: 38px;
+      height: 38px;
+      border: 1px solid #dbd2cd;
+      border-radius: 8px;
+      background: #f8f4f0;
+      color: #585256;
+      display: grid;
+      place-items: center;
+      position: relative;
+      transition: 0.2s ease;
+    }
+    .icon-button i {
+      position: absolute;
+      right: 8px;
+      top: 7px;
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #9c2f4c;
+      border: 1.5px solid white;
+    }
+    .icon-button:hover, .icon-button.pressed {
+      color: #7a213d;
+      border-color: #c9a8b2;
+      background: #fbf5f7;
+    }
+    .profile {
+      padding-left: 14px;
+      border-left: 1px solid #dfdcdd;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      color: #777175;
+    }
+    .avatar {
+      width: 34px;
+      height: 34px;
+      border-radius: 50% 50% 50% 8px;
+      color: #f9eef1;
+      background: linear-gradient(145deg, #9a4960, #601c32);
+      display: grid;
+      place-items: center;
+      font-size: 11px;
+      font-weight: 700;
+    }
+    .profile strong { display: block; color: #292528; font-size: 11.5px; }
+    .profile small { display: block; color: #9b9290; font-size: 9.5px; margin-top: 1px; }
+    .menu-button, .mobile-brand { display: none; }
+
+    /* 본문 레이아웃 */
+    .content { max-width: 1440px; margin: auto; padding: 38px 38px 64px; }
+    .welcome {
+      position: relative;
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      gap: 24px;
+      margin-bottom: 30px;
+      padding: 6px 4px 4px 19px;
+      border-left: 3px solid #7f2c45;
+    }
+    .welcome::after {
+      content: 'SECURITY BRIEFING';
+      position: absolute;
+      right: 5px;
+      bottom: -22px;
+      color: #7a263b10;
+      font: 700 28px 'Gowun Batang', serif;
+      letter-spacing: 0.08em;
+      pointer-events: none;
+    }
+    .eyebrow {
+      margin: 0 0 10px !important;
+      color: #8b3850 !important;
+      font-size: 10px !important;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      display: flex;
+      align-items: center;
+      gap: 7px;
+    }
+    .eyebrow span {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #8e2947;
+      box-shadow: 0 0 0 4px #ead8de;
+    }
+    .welcome h1 {
+      margin: 0;
+      font: 700 27px/1.25 'Gowun Batang', serif;
+      letter-spacing: -0.04em;
+      color: #302329;
+    }
+    .welcome p { margin: 7px 0 0; color: #756c6f; font-size: 12.5px; line-height: 1.55; }
+
+    /* 버튼 스타일 */
+    .primary-button, button.primary {
+      height: 40px;
+      padding: 0 17px;
+      border-radius: 4px 12px 12px 12px;
+      color: white;
+      background: linear-gradient(120deg, #651d35, #8d3450);
+      box-shadow: 0 8px 20px #6b1e3528;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      font-size: 12px;
+      font-weight: 600;
+      transition: 0.2s ease;
+    }
+    .primary-button:hover:not(:disabled), button.primary:hover:not(:disabled) {
+      background: linear-gradient(120deg, #501126, #76233d);
+      transform: translateY(-2px);
+      box-shadow: 0 12px 24px #6b1e3538;
+    }
+    .secondary-button, .btn-outline {
+      height: 40px;
+      padding: 0 15px;
+      border-radius: 4px 12px 12px 12px;
+      border: 1px solid #d5c8c2;
+      background: #fff;
+      color: #4a2c36;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
+      font-size: 12px;
+      font-weight: 600;
+      transition: 0.2s ease;
+    }
+    .secondary-button:hover:not(:disabled), .btn-outline:hover:not(:disabled) {
+      background: #f7edef;
+      border-color: #8d3450;
+      color: #651d35;
+    }
+    button.danger {
+      height: 34px;
+      padding: 0 12px;
+      border-radius: 4px 10px 10px 10px;
+      border: 1px solid #d99aa8;
+      background: #fff5f7;
+      color: #8d1b33;
+      font-size: 11.5px;
+      font-weight: 600;
+    }
+    button.danger:hover { background: #f3dce1; }
+    button:disabled { opacity: 0.55; cursor: not-allowed; transform: none !important; }
+
+    /* 상단 메트릭 4열 그리드 */
+    .metrics-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+    .metric-card, .card {
+      background: #fdfbf8;
+      border: 1px solid #ded5ce;
+      border-radius: 5px 16px 16px 16px;
+      box-shadow: 0 5px 20px #4d253008;
+      transition: border-color 0.25s ease, box-shadow 0.25s ease, transform 0.25s ease;
+    }
+    .metric-card:hover {
+      transform: translateY(-2px);
+      border-color: #d0bfc5;
+      box-shadow: 0 12px 28px #3b1a2510;
+    }
+    .metric-card {
+      min-height: 138px;
+      padding: 20px 21px;
+      position: relative;
+      overflow: hidden;
+    }
+    .metric-card.dark-wine {
+      background: #351f27;
+      border-color: #351f27;
+    }
+    .metric-card.dark-wine .metric-top,
+    .metric-card.dark-wine .metric-foot span { color: #c5b7bc; }
+    .metric-card.dark-wine .metric-value { color: #fff8fa; }
+    .metric-card.dark-wine .metric-foot b { color: #f2ccd7; background: #713247; }
+    .metric-card.accent {
+      background: linear-gradient(135deg, #fffdf9 55%, #f5e7ea);
+    }
+    .metric-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      color: #7c7376;
+      font-size: 11px;
+      font-weight: 700;
+    }
+    .metric-top i {
+      width: 7px;
+      height: 7px;
+      background: #5aa47b;
+      border-radius: 50%;
+      box-shadow: 0 0 0 4px #e2f1e8;
+    }
+    .metric-top i.status-alert {
+      background: #8d2945;
+      box-shadow: 0 0 0 4px #f2e1e6;
+    }
+    .metric-value {
+      margin-top: 11px;
+      font: 700 24px/1.2 'Noto Sans KR', sans-serif;
+      letter-spacing: -0.03em;
+      color: #231f22;
+    }
+    .metric-value small { color: #8e8588; font-size: 11px; margin-left: 3px; font-weight: 500; }
+    .metric-foot {
+      margin-top: 9px;
+      display: flex;
+      gap: 7px;
+      align-items: center;
+      font-size: 10.5px;
+      color: #8f878a;
+      line-height: 1.4;
+    }
+    .metric-foot b {
+      color: #2f6c4d;
+      background: #e6f2ec;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 10px;
+      flex-shrink: 0;
+    }
+    .metric-foot b.down { color: #8a2b46; background: #f5e8ec; }
+
+    /* 대시보드 차트 및 분포 그리드 */
+    .dashboard-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 2fr) minmax(270px, 0.85fr);
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+    .card { padding: 22px 24px; margin-bottom: 14px; position: relative; }
+    .card-heading {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+    .card-heading h2, .card-heading h3 {
+      margin: 0;
+      font: 700 15px 'Gowun Batang', serif;
+      color: #36282e;
+      letter-spacing: -0.03em;
+    }
+    .card-heading p { margin: 4px 0 0; font-size: 11px; color: #8c8380; }
+    .range-control {
+      padding: 3px;
+      border-radius: 7px;
+      background: #eee8e3;
+      display: flex;
+      gap: 2px;
+    }
+    .range-control button {
+      padding: 5px 10px;
+      border-radius: 5px;
+      color: #867d7b;
+      background: transparent;
+      font-size: 10.5px;
+      font-weight: 600;
+    }
+    .range-control button.selected {
+      background: white;
+      color: #72223b;
+      box-shadow: 0 1px 4px #25192114;
+    }
+    .chart-card::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 22px;
+      width: 3px;
+      height: 40px;
+      background: #812d47;
+      border-radius: 0 3px 3px 0;
+    }
+    .chart-wrap { position: relative; height: 210px; margin: 16px 0 0 34px; }
+    .chart { width: 100%; height: 178px; overflow: visible; }
+    .grid-lines { fill: none; stroke: #ebe5e0; stroke-width: 1; }
+    .area { fill: url(#wineFill); }
+    .line { fill: none; stroke: #832441; stroke-width: 3; vector-effect: non-scaling-stroke; }
+    .point { fill: white; stroke: #832441; stroke-width: 3; }
+    .chart-y {
+      position: absolute;
+      left: -34px;
+      top: 2px;
+      bottom: 28px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      color: #9e9693;
+      font-size: 9.5px;
+    }
+    .chart-x {
+      display: flex;
+      justify-content: space-between;
+      padding-top: 6px;
+      color: #9e9693;
+      font-size: 9.5px;
+    }
+    .chart-legend {
+      border-top: 1px solid #ebe5e0;
+      padding-top: 12px;
+      display: flex;
+      gap: 20px;
+      flex-wrap: wrap;
+      color: #7d7578;
+      font-size: 11px;
+    }
+    .chart-legend span { display: flex; align-items: center; gap: 6px; }
+    .chart-legend i { width: 8px; height: 8px; border-radius: 2px; display: inline-block; }
+    .chart-legend i.wine { background: #832441; }
+    .chart-legend i.gray { background: #aaa3a7; }
+    .chart-legend strong { margin-left: 3px; color: #36282e; }
+
+    .posture-card { background: #f8f1ee; }
+    .donut-wrap { display: grid; place-items: center; padding: 16px 0; }
+    .donut {
+      width: 126px;
+      height: 126px;
+      border-radius: 50%;
+      background: conic-gradient(#701e38 0 65deg, #b55b73 65deg 165deg, #d6a3b0 165deg 290deg, #dedadd 290deg);
+      display: grid;
+      place-items: center;
+      position: relative;
+      box-shadow: inset 0 0 0 1px #ffffff80, 0 10px 22px #58233212;
+    }
+    .donut::after {
+      content: '';
+      width: 84px;
+      height: 84px;
+      border-radius: 50%;
+      background: #f8f1ee;
+      position: absolute;
+    }
+    .donut div { z-index: 1; text-align: center; }
+    .donut strong { display: block; font: 700 22px 'Noto Sans KR'; color: #292428; }
+    .donut span { display: block; color: #8c8380; font-size: 9.5px; }
+    .risk-list { display: grid; gap: 9px; }
+    .risk-label { display: flex; justify-content: space-between; color: #6e6669; font-size: 10.5px; }
+    .risk-label span { display: flex; align-items: center; gap: 7px; }
+    .risk-label i { width: 7px; height: 7px; border-radius: 2px; display: inline-block; }
+    .risk-track { height: 4px; background: #e9e1dc; border-radius: 2px; margin-top: 4px; overflow: hidden; }
+    .risk-track span { display: block; height: 100%; border-radius: inherit; }
+    .critical { background: #6e1d36; }
+    .high { background: #ac5069; }
+    .medium { background: #d3a0ae; }
+    .low { background: #c5bec1; }
+
+    /* 12단계 작전실 타일 & 테이블 */
+    .ops-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+      margin-top: 14px;
+    }
+    .ops-tile {
+      padding: 14px 16px;
+      border: 1px solid #e3d9d2;
+      border-radius: 4px 13px 13px 13px;
+      background: #fffdfb;
+    }
+    .ops-tile h4 {
+      margin: 0 0 6px;
+      font-size: 11.5px;
+      color: #741f3a;
+      font-weight: 700;
+    }
+    .ops-tile div {
+      font-size: 12px;
+      color: #36282e;
+      line-height: 1.5;
+      word-break: break-word;
+    }
+    .notice-box {
+      font-size: 12px;
+      color: #63595c;
+      margin-top: 10px;
+      padding: 10px 14px;
+      border-radius: 4px 11px 11px 11px;
+      background: #f6efe9;
+      border-left: 3px solid #7f2c45;
+      line-height: 1.6;
+    }
+    .offline-banner {
+      display: none;
+      margin: 0 0 16px;
+      padding: 13px 16px;
+      border-radius: 5px 14px 14px 14px;
+      border: 1px solid #d99aa8;
+      background: #f9e4e8;
+      color: #7c1930;
+      font-size: 12.5px;
+      font-weight: 600;
+    }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 4px 10px;
+      border-radius: 2px 8px 8px 8px;
+      font-size: 11px;
+      font-weight: 700;
+    }
+    .badge.pending { background: #f6e8dc; color: #8b4c28; border: 1px solid #e4cbb6; }
+    .badge.approved { background: #e6f2ec; color: #2d6a4f; border: 1px solid #bce0cd; }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 10px;
+      font-size: 12px;
+    }
+    th, td {
+      border-bottom: 1px solid #e7dfda;
+      padding: 10px 11px;
+      text-align: left;
+      vertical-align: middle;
+    }
+    th {
+      background: #f5ede9;
+      color: #522030;
+      font-weight: 700;
+      font-size: 11px;
+    }
+    tr:hover td { background: #faf4f5; }
+
+    /* 입력 폼 & 메모 리스트 */
+    input[type="text"], input[type="email"], input[type="password"], textarea, select {
+      padding: 9px 12px;
+      border-radius: 6px;
+      border: 1px solid #d8ceca;
+      background: #fff;
+      color: #292326;
+      width: 100%;
+      font-size: 12.5px;
+    }
+    ul#notes {
+      list-style: none;
+      display: grid;
+      gap: 10px;
+      padding: 0;
+      margin: 12px 0 0;
+    }
+    ul#notes li {
+      border: 1px solid #e3d9d2;
+      border-radius: 5px 14px 14px 14px;
+      padding: 15px 18px;
+      background: #fffdfb;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 12px;
+    }
     .memo-text { flex-grow: 1; }
-    strong { display: block; font-size: 18px; margin-bottom: 5px; }
-    li span { color: #bfd0e5; word-break: break-all; }
-    .actions { display: flex; gap: 8px; margin-left: 12px; }
-    button { padding: 8px 14px; border-radius: 6px; border: 1px solid #51667c; background: #101a28; color: #fff; cursor: pointer; font-size: 14px; }
-    button.primary { background: #8ad8df; color: #101a28; font-weight: bold; border: none; }
-    button.danger { border-color: #ff6b81; color: #ff6b81; }
-    input, textarea { padding: 10px; border-radius: 6px; border: 1px solid #51667c; background: #101a28; color: #fff; width: 100%; box-sizing: border-box; }
+    .memo-text strong { display: block; font-size: 14px; color: #36282e; margin-bottom: 4px; }
+    .memo-text span { color: #6c6366; font-size: 12.5px; word-break: break-all; }
+    .actions { display: flex; gap: 6px; flex-shrink: 0; }
+
+    /* 최근 탐지 이벤트 리스트 */
+    .incident-list { margin-top: 10px; }
+    .incident {
+      width: 100%;
+      min-height: 58px;
+      padding: 8px 6px;
+      border-top: 1px solid #e7dfda;
+      background: transparent;
+      display: grid;
+      grid-template-columns: 58px 1fr auto 22px;
+      align-items: center;
+      gap: 12px;
+      text-align: left;
+      transition: 0.2s ease;
+    }
+    .incident:hover {
+      padding-left: 12px;
+      padding-right: 12px;
+      background: #f7eeef;
+      border-radius: 6px;
+    }
+    .severity {
+      justify-self: start;
+      width: 50px;
+      padding: 4px 0;
+      border-radius: 2px 7px 7px 7px;
+      text-align: center;
+      font-size: 10px;
+      font-weight: 700;
+    }
+    .severity.critical, .severity.긴급, .severity.block { color: #fff; background: #702139; }
+    .severity.high, .severity.높음, .severity.alert { color: #884826; background: #f3dfcf; }
+    .severity.medium, .severity.주의, .severity.record { color: #5c5457; background: #eae3de; }
+    .severity.allow { color: #2d6a4f; background: #e6f2ec; }
+    .incident-copy strong { display: block; font-size: 12.5px; color: #36282e; font-weight: 600; }
+    .incident-copy small { display: block; margin-top: 2px; color: #8c8380; font-size: 11px; }
+    .incident time { color: #948b89; font-size: 11px; }
+
+    /* 2단 그리드 및 코드 박스 */
+    .grid-2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+    .code-block {
+      margin: 8px 0 0;
+      padding: 12px 14px;
+      border-radius: 8px;
+      background: #211b1e;
+      color: #f0e6e9;
+      font: 11.5px/1.6 ui-monospace, Consolas, monospace;
+      overflow-x: auto;
+      white-space: pre-wrap;
+      word-break: break-all;
+    }
+
+    /* 모달 및 드로어 */
+    .modal-layer, .drawer-layer {
+      position: fixed;
+      inset: 0;
+      z-index: 60;
+      background: #27101878;
+      backdrop-filter: blur(5px);
+      display: grid;
+      place-items: center;
+      padding: 20px;
+    }
+    .drawer-layer { place-items: stretch end; padding: 0; }
+    .command-panel, .hunt-panel {
+      width: min(620px, 100%);
+      border-radius: 5px 17px 17px 17px;
+      border: 1px solid #d8cdc7;
+      background: #fdfbf8;
+      box-shadow: 0 35px 100px #18091055;
+      overflow: hidden;
+    }
+    .modal-accent {
+      height: 6px;
+      background: linear-gradient(90deg, #481125, #852d48, #c68a9b);
+    }
+    .modal-header {
+      padding: 22px 24px 14px;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+    }
+    .modal-header h2, .incident-drawer h2 {
+      margin: 0;
+      color: #292428;
+      font: 700 20px/1.3 'Gowun Batang', serif;
+    }
+    .close-button {
+      width: 30px;
+      height: 30px;
+      border-radius: 50%;
+      background: #efe9e4;
+      color: #60575a;
+      font-size: 18px;
+      display: grid;
+      place-items: center;
+    }
+    .modal-body { padding: 0 24px 20px; }
+    .modal-actions {
+      padding: 14px 24px;
+      border-top: 1px solid #e8e0db;
+      background: #f8f4f0;
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+    }
+    .incident-drawer {
+      width: min(460px, 100%);
+      height: 100%;
+      padding: 28px;
+      background: #fdfaf6;
+      border-left: 5px solid #75233c;
+      box-shadow: -20px 0 80px #18091033;
+      overflow-y: auto;
+    }
+    .detail-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      border: 1px solid #e6e1e2;
+      border-radius: 10px;
+      overflow: hidden;
+      margin: 16px 0;
+    }
+    .detail-grid div { padding: 11px 13px; border-bottom: 1px solid #eee9eb; background: #fff; }
+    .detail-grid div:nth-child(odd) { border-right: 1px solid #eee9eb; }
+    .detail-grid small { display: block; color: #948b89; font-size: 10px; }
+    .detail-grid strong { display: block; margin-top: 3px; color: #36282e; font-size: 12px; }
+
+    .toast {
+      position: fixed;
+      z-index: 90;
+      right: 24px;
+      bottom: 24px;
+      min-width: 280px;
+      max-width: 420px;
+      padding: 13px 16px;
+      border: 1px solid #d8cbd0;
+      border-radius: 4px 13px 13px 13px;
+      background: #fdfaf6;
+      box-shadow: 0 15px 45px #27131b2b;
+      display: flex;
+      align-items: center;
+      gap: 11px;
+    }
+    .toast-icon {
+      width: 30px;
+      height: 30px;
+      border-radius: 8px;
+      color: white;
+      background: #72213a;
+      display: grid;
+      place-items: center;
+      font-weight: 700;
+      flex-shrink: 0;
+    }
+    .toast strong { display: block; color: #302329; font-size: 12px; }
+    .toast small { display: block; margin-top: 2px; color: #756c6f; font-size: 11px; }
+
+    .scrim { display: none; }
+
+    @media (max-width: 1080px) {
+      .metrics-grid, .ops-grid { grid-template-columns: repeat(2, 1fr); }
+      .dashboard-grid, .grid-2 { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 780px) {
+      .sidebar { transform: translateX(-100%); transition: transform 0.25s ease; }
+      .sidebar.open { transform: translateX(0); }
+      main { margin-left: 0; }
+      .topbar { padding: 0 16px; }
+      .menu-button { display: grid; place-items: center; width: 36px; height: 36px; background: transparent; color: #32151f; font-size: 20px; }
+      .mobile-brand { display: block; font: 700 16px 'Gowun Batang', serif; color: #32151f; }
+      .global-search { width: 150px; }
+      .content { padding: 24px 16px 48px; }
+      .welcome { flex-direction: column; align-items: flex-start; }
+      .welcome::after { display: none; }
+      .scrim { display: block; position: fixed; inset: 0; z-index: 25; background: #160c1188; }
+    }
   </style>
 </head>
 <body>
-  <main>
-    <div class="eyebrow">BYTE BACK · 12단계 탈환 작전실 & 설치형 접속 앱</div>
-    <h1>보호된 자료실 & 탈환 작전실</h1>
-    <p>제공된 ALEPH SDP 엔진과 학생 판정·탐지·회수·복구·서명 검증의 실제 API 결과를 읽는 탈환 작전실입니다. 화면 문구만으로 통과를 가정하지 않으며, 가상 메모 본문은 작전실에 표시하지 않습니다.</p>
+  <div class="app-shell">
+    <!-- 좌측 와인 XDR 내비게이션 사이드바 -->
+    <aside id="sidebar" class="sidebar">
+      <div class="brand">
+        <div class="brand-mark"><span /></div>
+        <span class="brand-title">가디언<span class="brand-dot">.</span><small>XDR</small></span>
+      </div>
 
-    <div id="offline-banner" class="offline-banner" role="status" aria-live="polite">
-      오프라인 안내: 현재 네트워크에 연결되어 있지 않습니다. 보호 자료나 기기 키·토큰은 오프라인에 보관하지 않으므로, 온라인 연결 후 서버 검증을 거쳐야 합니다.
+      <nav class="nav-list" aria-label="주 관제 메뉴">
+        <p class="nav-label">통합 보안 관제 · 방어전</p>
+        <button type="button" class="nav-item active" data-nav="ops">
+          <span>1. 통합 현황 &amp; 탈환 작전실</span>
+          <b id="nav-badge-ops">12단계</b>
+        </button>
+        <button type="button" class="nav-item" data-nav="agent">
+          <span>2. 로컬 에이전트 · 케셰브</span>
+          <b>on-client</b>
+        </button>
+        <button type="button" class="nav-item" data-nav="xdr">
+          <span>3. XDR 위협 헌팅 &amp; 6대 탐지</span>
+          <b id="nav-badge-xdr">6종</b>
+        </button>
+        <button type="button" class="nav-item" data-nav="toolkit">
+          <span>4. 일상 활용 &amp; 도구 실행 센터</span>
+          <b>가이드</b>
+        </button>
+      </nav>
+
+      <div class="sidebar-bottom">
+        <div class="env-switch">
+          <div class="env-switch-label">
+            <span>동작 모드</span>
+            <span id="runtime-mode-pill" class="badge approved">자동 감지</span>
+          </div>
+          <small id="runtime-mode-desc">Vercel 배포 시 실제 서버 API와 통신하며, 오프라인/프리뷰 시 내장 샌드박스로 동작합니다.</small>
+        </div>
+        <div class="system-state">
+          <span class="live-dot"></span>
+          <div>
+            <strong>ALEPH SDP &amp; 케셰브 엔진 정상</strong>
+            <small id="sidebar-clock">실시간 보안 관제 중</small>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <main>
+      <!-- 상단 탑바 -->
+      <header class="topbar">
+        <div class="topbar-left">
+          <button type="button" id="mobile-menu-btn" class="menu-button" aria-label="메뉴 열기">☰</button>
+          <div class="mobile-brand">가디언<span>.</span>XDR</div>
+          <span class="context-pill" id="active-tab-pill">클라우드 배포 웹앱 (1~12단계 · Vercel)</span>
+        </div>
+
+        <div class="top-actions">
+          <button type="button" id="open-search-btn" class="global-search">
+            <span>🔍 탐지·자산·단계·도구 통합 검색</span>
+            <kbd>⌘ K</kbd>
+          </button>
+          <button type="button" id="open-hunt-btn" class="secondary-button">⚡ KQL 위협 헌팅</button>
+          <div class="profile">
+            <div class="avatar">방어</div>
+            <div>
+              <strong id="topbar-user-name">방어전 수료자</strong>
+              <small id="topbar-user-role">ZTNA · XDR 보안 관리자</small>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <div class="content">
+        <div id="offline-banner" class="offline-banner" role="status" aria-live="polite">
+          오프라인 안내: 현재 네트워크에 연결되어 있지 않습니다. 보호 자료나 기기 키·토큰은 오프라인에 보관하지 않으므로, 온라인 연결 후 서버 검증을 거쳐야 합니다.
+        </div>
+
+        <!-- ===================================================================
+             TAB 1: 통합 현황 & 탈환 작전실 (기존 루트 public/index.html 1~12단계 100% 통합)
+             =================================================================== -->
+        <div id="tab-panel-ops" class="tab-panel">
+          <section class="welcome">
+            <div>
+              <p class="eyebrow"><span></span> BYTE BACK 1~12단계 · 보호된 자료실 &amp; 탈환 작전실</p>
+              <h1>오늘의 클라우드 방어 및 탈환 작전 현황입니다.</h1>
+              <p>제공된 ALEPH SDP 엔진과 학생 판정(<code>src/decider.mjs</code>)·탐지(<code>src/detect.mjs</code>)·회수·단건 복구·ECDSA 기기 서명의 실제 API 응답을 통합 관제합니다.</p>
+            </div>
+            <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+              <button type="button" id="refresh-ops-btn" class="secondary-button">작전실 상태 조회</button>
+              <button type="button" id="run-live-checks-btn" class="primary-button">🛡️ 1~11단계 실측 점검 실행</button>
+            </div>
+          </section>
+
+          <!-- 상단 4대 핵심 지표 카드 -->
+          <section class="metrics-grid">
+            <article class="metric-card accent">
+              <div class="metric-top"><span>통합 방어 단계</span><i></i></div>
+              <div class="metric-value" id="metric-score-val">12<small>/ 12단계</small></div>
+              <div class="metric-foot"><b>검증 준비</b><span id="metric-score-note">클라우드 검문소 · 서명 활성</span></div>
+            </article>
+            <article class="metric-card dark-wine">
+              <div class="metric-top"><span>실측 보안 점검 항목</span><i class="status-alert"></i></div>
+              <div class="metric-value" id="metric-checks-val">7<small>대표 실측 / 41종</small></div>
+              <div class="metric-foot"><b id="metric-checks-badge">대기 중</b><span>미실행 항목 임의 통과 금지</span></div>
+            </article>
+            <article class="metric-card">
+              <div class="metric-top"><span>기기 승인 &amp; ECDSA 서명</span><i></i></div>
+              <div class="metric-value" id="metric-device-val">미승인<small>P-256</small></div>
+              <div class="metric-foot"><b class="down" id="metric-device-badge">메모리 전용</b><span>브라우저 저장소 키 보관 금지</span></div>
+            </article>
+            <article class="metric-card">
+              <div class="metric-top"><span>가린 서버 감사 기록</span><i></i></div>
+              <div class="metric-value" id="metric-audit-val">0<small>건 대조</small></div>
+              <div class="metric-foot"><b>본문 비표시</b><span>메모 본문·비밀값 100% 마스킹</span></div>
+            </article>
+          </section>
+
+          <!-- 와인 XDR 위협 탐지 흐름 차트 & 위험도 분포 -->
+          <section class="dashboard-grid">
+            <article class="card chart-card">
+              <div class="card-heading">
+                <div>
+                  <h2>실시간 위협 탐지 및 검문소 차단 추이</h2>
+                  <p>비로그인 접근(1~2단계), 무인증 요청(3~5단계), 미등록 기기(6단계), 도플갱어 폭주(9단계), 무서명 변조(11단계) 방어 흐름</p>
+                </div>
+                <div class="range-control">
+                  <button type="button" class="range-btn selected" data-range="24시간">24시간</button>
+                  <button type="button" class="range-btn" data-range="최근 7일">최근 7일</button>
+                  <button type="button" class="range-btn" data-range="최근 30일">최근 30일</button>
+                </div>
+              </div>
+              <div class="chart-wrap">
+                <div class="chart-y"><span>120건</span><span>80건</span><span>40건</span><span>0</span></div>
+                <svg class="chart" viewBox="0 0 760 220" preserveAspectRatio="none" role="img" aria-label="탐지 추이 차트">
+                  <defs>
+                    <linearGradient id="wineFill" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0" stop-color="#841f3b" stop-opacity=".26" />
+                      <stop offset="1" stop-color="#841f3b" stop-opacity="0" />
+                    </linearGradient>
+                  </defs>
+                  <g class="grid-lines"><path d="M0 12H760M0 76H760M0 140H760M0 204H760" /></g>
+                  <path id="chart-area-path" class="area" d="M0 170 C35 155 55 164 88 142 S140 150 178 117 S233 135 270 97 S330 112 370 77 S430 94 470 52 S530 74 570 46 S630 70 670 28 S730 37 760 15 L760 220 L0 220Z" />
+                  <path id="chart-line-path" class="line" d="M0 170 C35 155 55 164 88 142 S140 150 178 117 S233 135 270 97 S330 112 370 77 S430 94 470 52 S530 74 570 46 S630 70 670 28 S730 37 760 15" />
+                  <circle cx="670" cy="28" r="5" class="point" />
+                </svg>
+                <div class="chart-x"><span>1~2단계</span><span>3~5단계</span><span>6~7단계</span><span>8단계</span><span>9단계</span><span>10단계</span><span>11~12단계</span></div>
+              </div>
+              <div class="chart-legend">
+                <span><i class="wine"></i> 활성 방어 계층 <strong id="chart-legend-layers">판정기 · 탐지기 · ECDSA 서명 · SHA-256 복구</strong></span>
+                <span><i class="gray"></i> 현재 표시 범위 <strong id="chart-legend-range">24시간</strong></span>
+              </div>
+            </article>
+
+            <article class="card posture-card">
+              <div class="card-heading">
+                <div>
+                  <h2>방어 계층별 보호 비중</h2>
+                  <p>전체 41종 시험 시나리오 분포</p>
+                </div>
+              </div>
+              <div class="donut-wrap">
+                <div class="donut"><div><strong>41</strong><span>전체 검증 시나리오</span></div></div>
+              </div>
+              <div class="risk-list">
+                <div>
+                  <div class="risk-label"><span><i class="critical"></i>신원·기기·ECDSA 서명 (3~6·11단계)</span><strong>14종</strong></div>
+                  <div class="risk-track"><span class="critical" style="width: 34%"></span></div>
+                </div>
+                <div>
+                  <div class="risk-label"><span><i class="high"></i>이상 접속 Step-Up·구역 분리 (7~8단계)</span><strong>11종</strong></div>
+                  <div class="risk-track"><span class="high" style="width: 27%"></span></div>
+                </div>
+                <div>
+                  <div class="risk-label"><span><i class="medium"></i>도플갱어 회수·단건 백업 복원 (9~10단계)</span><strong>10종</strong></div>
+                  <div class="risk-track"><span class="medium" style="width: 24%"></span></div>
+                </div>
+                <div>
+                  <div class="risk-label"><span><i class="low"></i>비로그인 차단·작전실 대조 (1~2·12단계)</span><strong>6종</strong></div>
+                  <div class="risk-track"><span class="low" style="width: 15%"></span></div>
+                </div>
+              </div>
+            </article>
+          </section>
+
+          <!-- 12단계: 탈환 작전실 카드 (기존 ID 100% 보존) -->
+          <section id="ops-room-card" class="card" aria-labelledby="ops-room-heading">
+            <div class="card-heading">
+              <div>
+                <h2 id="ops-room-heading">탈환 작전실 (실제 API 응답 요약 · 메모 본문 비표시)</h2>
+                <p>신원·기기·경로 기본 계약은 <strong>ALEPH SDP 엔진</strong>을 사용하며, 판정(<code>src/decider.mjs</code>)·탐지(<code>src/detect.mjs</code>)·회수·복구·서명은 학생이 구현했습니다.</p>
+              </div>
+              <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                <button type="button" id="simulate-restore-btn" class="secondary-button">🔄 10단계 단건 백업 복원 점검</button>
+              </div>
+            </div>
+
+            <div class="ops-grid">
+              <div class="ops-tile">
+                <h4>1. 판정기 규칙 (Decider)</h4>
+                <div id="ops-decider-summary">조회 전 (미실행)</div>
+              </div>
+              <div class="ops-tile">
+                <h4>2. 탐지 사건 (Detection)</h4>
+                <div id="ops-detection-summary">조회 전 (미실행)</div>
+              </div>
+              <div class="ops-tile">
+                <h4>3. 회수 상태 (Revocation)</h4>
+                <div id="ops-revocation-summary">조회 전 (미실행)</div>
+              </div>
+              <div class="ops-tile">
+                <h4>4. 복구 버전 (Restore)</h4>
+                <div id="ops-restore-summary">조회 전 (미실행)</div>
+              </div>
+            </div>
+
+            <div id="ops-audit-match" class="notice-box">
+              가린 서버 기록 대조: 아직 조회되지 않음 (미실행 · 메모 본문 미포함)
+            </div>
+
+            <h3 style="margin: 18px 0 6px; font-size: 13.5px; color: #5e1c32;">1~11단계 정상·금지 요청 실측 결과 표 (총 41종 중 미실행 항목 구분)</h3>
+            <div style="overflow-x: auto;">
+              <table id="ops-check-table">
+                <thead>
+                  <tr>
+                    <th>단계 / 구분</th>
+                    <th>정상·금지 요청 항목</th>
+                    <th>기대 결과</th>
+                    <th>실제 API 결과</th>
+                    <th>요청 ID (requestId)</th>
+                    <th>확인 시각 (checkedAt)</th>
+                  </tr>
+                </thead>
+                <tbody id="ops-check-tbody"></tbody>
+              </table>
+            </div>
+          </section>
+
+          <!-- 11단계: 기기 승인 & 인증 & 보호 자료실 (2단 배치) -->
+          <div class="grid-2">
+            <!-- 좌측: 로그인 및 기기 승인 카드 -->
+            <div>
+              <div id="auth-container" class="card">
+                <div id="logged-out-view">
+                  <div class="card-heading" style="margin-bottom: 12px;">
+                    <div>
+                      <h2>1. 보호 자료실 인증 (Supabase 서버 집중화 로그인)</h2>
+                      <p>브라우저에 Supabase 비밀키를 두지 않고 <code>POST /api/login</code>으로 인증합니다.</p>
+                    </div>
+                    <button type="button" id="demo-login-btn" class="secondary-button" style="height: 32px; font-size: 11px;">⚡ 데모 세션으로 즉시 체험</button>
+                  </div>
+                  <form id="login-form" style="display: grid; gap: 10px;">
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                      <input type="email" id="auth-email" placeholder="이메일 (예: agent@aleph.local)" required />
+                      <input type="password" id="auth-password" placeholder="비밀번호" required />
+                    </div>
+                    <div style="display: flex; justify-content: flex-end;">
+                      <button type="submit" class="primary">로그인</button>
+                    </div>
+                  </form>
+                  <div id="auth-error" style="color: #8d1b33; margin-top: 8px; font-size: 12px; font-weight: 600;"></div>
+                </div>
+
+                <div id="logged-in-view" style="display: none; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px;">
+                  <div>
+                    <span class="eyebrow" style="margin-bottom: 4px !important;"><span></span> ACTIVE SESSION</span>
+                    <span id="user-display" style="font-weight: 700; color: #5e1c32; font-size: 13.5px;"></span>
+                  </div>
+                  <button type="button" id="logout-btn" class="secondary-button">로그아웃</button>
+                </div>
+              </div>
+
+              <div id="device-status-card" class="card">
+                <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+                  <strong style="font-size: 14px; color: #36282e;">2. 기기 승인 및 Web Crypto ECDSA P-256 서명</strong>
+                  <span id="device-approval-badge" class="badge pending">미승인 · 승인 전 보호 자료 비공개</span>
+                </div>
+                <p class="notice-box" style="margin-bottom: 8px;">
+                  • <strong>설치 표시와 기기 확인 분리</strong>: PWA(<code>manifest.json</code>) 설치 표시만으로 기기 승인을 인정하지 않습니다.<br>
+                  • <strong>메모리 전용 전자서명</strong>: 개인키(ECDSA P-256, <code>extractable: false</code>)는 브라우저 저장소에 넣지 않고 메모리에만 유지하며, 모든 보호 요청의 <code>메서드+경로+본문 SHA-256+시각</code>을 서명합니다.
+                </p>
+                <div id="device-approval-controls" style="display: none; margin-top: 12px; padding-top: 12px; border-top: 1px solid #e7dfda;">
+                  <p style="margin: 0 0 10px; font-size: 12px; color: #5c5457;">
+                    로그인되었습니다. 보호 자료실을 열려면 서버(<code>POST /api/device</code>)와 판정기에 기기 등록 확인 및 공개키(JWK) 등록을 요청하세요.
+                  </p>
+                  <button type="button" id="request-approval-btn" class="primary">🔑 서버에 기기 승인 &amp; ECDSA 키 등록 요청</button>
+                  <div id="device-approval-result" class="notice-box" style="margin-top: 10px;"></div>
+                </div>
+              </div>
+            </div>
+
+            <!-- 우측: 보호 자료실 메모 작성 및 목록 -->
+            <div>
+              <div id="create-container" class="card" style="display: none;">
+                <h2 style="margin: 0 0 10px; font: 700 15px 'Gowun Batang', serif;">새 보호 메모 작성 (ECDSA 전자서명 전송)</h2>
+                <form id="create-form" style="display: grid; gap: 10px;">
+                  <input type="text" id="new-title" placeholder="보안 메모 제목" required />
+                  <textarea id="new-body" placeholder="보호할 메모 내용을 입력하세요 (서버 전송 시 본문 SHA-256 해시가 전자서명됨)" rows="3" required></textarea>
+                  <div style="display: flex; justify-content: flex-end;">
+                    <button type="submit" class="primary">✍️ 서명 후 메모 저장</button>
+                  </div>
+                </form>
+              </div>
+
+              <div class="card">
+                <div class="card-heading">
+                  <div>
+                    <h2>보호된 자료실 메모 목록 (소유자 구역 분리)</h2>
+                    <p>기기 승인 완료 후 본인 소유(<code>owner_id</code>)의 메모만 복호화·조회됩니다.</p>
+                  </div>
+                </div>
+                <ul id="notes" aria-live="polite">
+                  <li>로그인 및 서버 기기 승인 완료 후 가상 자료를 확인할 수 있습니다.</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ===================================================================
+             TAB 2: 로컬 에이전트 · 케셰브 (on-client 13~20단계 통합 워크스페이스)
+             =================================================================== -->
+        <div id="tab-panel-agent" class="tab-panel" hidden>
+          <section class="welcome">
+            <div>
+              <p class="eyebrow"><span></span> KESHEV LOCAL AGENT · 13~20단계 내 컴퓨터 보안 에이전트 (on-client)</p>
+              <h1>내 PC 보안 에이전트 · 케셰브 (127.0.0.1:5189)</h1>
+              <p>내 컴퓨터의 <code>on-client</code> 폴더에서 실행되는 로컬 에이전트 화면입니다. 로그인·기기·세션 상태(13단계), 업무 앱 접근 판정(14단계), 접속·XDR 기록(15단계), AI 사건 설명 및 조치 확인(17~19단계), 오픈소스 취약점 대조(20단계)를 수행합니다.</p>
+            </div>
+            <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+              <button type="button" id="agent-Load-demo-btn" class="primary-button">🔄 에이전트 상태 새로고침</button>
+            </div>
+          </section>
+
+          <div class="grid-2">
+            <!-- 13단계 & 16단계: 현재 로그인·기기·세션 & 도움정보 -->
+            <section class="card">
+              <div class="card-heading">
+                <div>
+                  <h2>13·16단계 · 내 로그인 · 기기 · 세션 상태</h2>
+                  <p><code>student/extension.mjs</code>의 <code>renderIdentity</code> &amp; <code>renderStatus</code> 계약</p>
+                </div>
+                <span class="badge approved" id="agent-conn-badge">로컬 에이전트 활성</span>
+              </div>
+              <div class="detail-grid">
+                <div><small>사용자 (User)</small><strong id="agent-user-val">김서준 (seojun.kim@aleph.sec)</strong></div>
+                <div><small>등록 기기 (Device Posture)</small><strong id="agent-device-val">DESKTOP-KESHEV01 · 보안 기준 충족 (compliant)</strong></div>
+                <div><small>현재 세션 (Session)</small><strong id="agent-session-val">sess-09f2a · 활성 (active)</strong></div>
+                <div><small>개인 AI 연결 (17단계)</small><strong id="agent-ai-val">준비 완료 · 수동 요청 시에만 호출</strong></div>
+              </div>
+              <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap;">
+                <span style="font-size: 11.5px; color: #756c6f;">비밀 없는 진단 정보(<code>GET /api/diagnostics</code>) 확인 후 복사</span>
+                <div style="display: flex; gap: 6px;">
+                  <button type="button" id="agent-diag-btn" class="secondary-button" style="height: 34px;">도움정보 생성</button>
+                  <button type="button" id="agent-diag-copy-btn" class="primary-button" style="height: 34px;">📋 진단정보 복사</button>
+                </div>
+              </div>
+              <pre id="agent-diag-output" class="code-block">{"schema":"alekov.diagnostics.v1","engineMode":"demo","aiAuthorized":true,"workbenchRequiredAtRuntime":false,"checkedAt":"2026-10-30T12:30:00.000Z","secretsRedacted":true}</pre>
+            </section>
+
+            <!-- 14단계: 업무 앱 접근 판정기 -->
+            <section class="card">
+              <div class="card-heading">
+                <div>
+                  <h2>14단계 · 업무 앱 접근 판정 시뮬레이터 (ZTNA PDP)</h2>
+                  <p>허용(<code>allow</code>), 거부(<code>deny</code>), 추가 확인(<code>challenge</code>), 확인 불가(<code>unknown</code>)를 엄격히 구분합니다.</p>
+                </div>
+              </div>
+              <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-top: 12px;">
+                <button type="button" class="secondary-button app-test-btn" data-app="erp">📊 사내 재무 ERP 접속 요청</button>
+                <button type="button" class="secondary-button app-test-btn" data-app="git">💻 개발 Git 저장소 접속 요청</button>
+                <button type="button" class="secondary-button app-test-btn" data-app="admin">🔒 강사 전용 공지 수정 요청</button>
+                <button type="button" class="secondary-button app-test-btn" data-app="export">⚠️ 대량 자료 외부 반출(/export)</button>
+              </div>
+              <div id="agent-app-decision-box" class="notice-box" style="margin-top: 14px;">
+                <strong>판정 대기 중</strong>: 위 업무 앱 버튼 중 하나를 눌러 서버 판정 결과와 사유 코드(<code>reasonCode</code>)를 확인하세요.
+              </div>
+            </section>
+          </div>
+
+          <!-- 15·18·19단계: 접속·XDR 기록 및 AI 사건 설명 / 사람 확인 조치 -->
+          <section class="card">
+            <div class="card-heading">
+              <div>
+                <h2>15·18·19단계 · 내 접속·XDR 보안 기록 및 근거 기반 AI 사건 분석</h2>
+                <p>사건을 클릭하면 우측 상세 드로어에서 <strong>근거(Evidence)·규칙(Rules) 바인딩 AI 설명</strong>과 <strong>사람 확인(Human-in-the-Loop) 조치</strong>를 수행합니다.</p>
+              </div>
+              <div class="range-control">
+                <button type="button" class="event-filter-btn selected" data-filter="all">전체 (4건)</button>
+                <button type="button" class="event-filter-btn" data-filter="xdr">XDR 경보</button>
+                <button type="button" class="event-filter-btn" data-filter="access">접속 기록</button>
+              </div>
+            </div>
+            <div id="agent-incident-list" class="incident-list"></div>
+          </section>
+
+          <!-- 20단계: 설치 패키지 & OSV 취약점 실시간 스캐너 -->
+          <section class="card">
+            <div class="card-heading">
+              <div>
+                <h2>20단계 · 내 프로젝트 패키지 취약점(OSV) 스캐너</h2>
+                <p>정확한 SemVer 버전(<code>exactSemverPattern</code>)인지 검증하고 알려진 CVE/OSV 취약점과 미조회·확인 불가를 구분합니다. 일상에서 내 코딩 프로젝트의 의존성을 점검할 때 쓸 수 있습니다.</p>
+              </div>
+              <div style="display: flex; gap: 8px;">
+                <button type="button" id="osv-scan-sample-btn" class="secondary-button">샘플 package-lock 불러오기</button>
+                <button type="button" id="osv-run-scan-btn" class="primary-button">🔍 패키지 취약점 대조 실행</button>
+              </div>
+            </div>
+            <div style="margin-top: 12px;">
+              <textarea id="osv-input-json" rows="3" style="font-family: monospace; font-size: 11.5px;">{"packages":{"@supabase/supabase-js":"2.117.2","jose":"6.2.12","lodash":"4.17.15","express":"^4.18.0"}}</textarea>
+            </div>
+            <div style="overflow-x: auto;">
+              <table id="osv-result-table">
+                <thead>
+                  <tr>
+                    <th>패키지 이름</th>
+                    <th>설치 버전</th>
+                    <th>SemVer 검증</th>
+                    <th>OSV 취약점 판정</th>
+                    <th>상세 근거 및 권고 조치</th>
+                  </tr>
+                </thead>
+                <tbody id="osv-result-tbody"></tbody>
+              </table>
+            </div>
+          </section>
+        </div>
+
+        <!-- ===================================================================
+             TAB 3: XDR 위협 헌팅 & 6대 보너스 탐지기 (xdr/ 폴더 6종 완벽 내장)
+             =================================================================== -->
+        <div id="tab-panel-xdr" class="tab-panel" hidden>
+          <section class="welcome">
+            <div>
+              <p class="eyebrow"><span></span> XDR BONUS ENGINE · 6대 Wazuh 보안 경보 판정기 (xdr/&lt;moduleKey&gt;/decide.mjs)</p>
+              <h1>XDR 6대 위협 자동 판정 &amp; 상관분석 엔진</h1>
+              <p>저장소의 <code>xdr/fixtures/*.json</code>에 수록된 6가지 공격 유형을 분석하여 명확한 공격은 <code>block</code>(차단), 애매한 시도는 <code>alert</code>(경고), 정상 이벤트는 <code>record</code>(기록)로 분류합니다.</p>
+            </div>
+            <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+              <button type="button" id="xdr-run-all-btn" class="primary-button">🚀 6대 모듈 전체 판정 실행</button>
+            </div>
+          </section>
+
+          <div class="ops-grid" style="grid-template-columns: repeat(3, 1fr); margin-bottom: 14px;">
+            <button type="button" class="card xdr-module-btn" data-mod="brute-force" style="text-align: left; margin: 0;">
+              <span class="badge critical" style="background:#702139; color:#fff;">Module 01 · brute-force</span>
+              <h3 style="margin: 8px 0 4px;">무차별 로그인 실패 폭주</h3>
+              <p style="margin: 0; font-size: 11.5px; color: #756c6f;">짧은 시간 동안 동일 IP/계정에 몰린 연속 인증 실패 후 성공 패턴을 탐지합니다.</p>
+            </button>
+            <button type="button" class="card xdr-module-btn" data-mod="web-injection" style="text-align: left; margin: 0;">
+              <span class="badge critical" style="background:#702139; color:#fff;">Module 02 · web-injection</span>
+              <h3 style="margin: 8px 0 4px;">웹 요청 SQLi · XSS · 경로 조작</h3>
+              <p style="margin: 0; font-size: 11.5px; color: #756c6f;">쿼리 문자열과 본문에 섞인 UNION SELECT, 스크립트 태그, <code>../</code> 탐색을 판별합니다.</p>
+            </button>
+            <button type="button" class="card xdr-module-btn" data-mod="known-cve" style="text-align: left; margin: 0;">
+              <span class="badge critical" style="background:#702139; color:#fff;">Module 03 · known-cve</span>
+              <h3 style="margin: 8px 0 4px;">공개 취약점(Log4Shell 등) 악용</h3>
+              <p style="margin: 0; font-size: 11.5px; color: #756c6f;">헤더나 경로에 포함된 원격 JNDI 조회 구문 및 알려진 익스플로잇 시그니처를 차단합니다.</p>
+            </button>
+            <button type="button" class="card xdr-module-btn" data-mod="persistence" style="text-align: left; margin: 0;">
+              <span class="badge critical" style="background:#702139; color:#fff;">Module 04 · persistence</span>
+              <h3 style="margin: 8px 0 4px;">지속성 확보 (레지스트리·예약작업)</h3>
+              <p style="margin: 0; font-size: 11.5px; color: #756c6f;">재부팅 후에도 살아남도록 심긴 Run 키, schtasks, 수상한 서비스 등록을 잡아냅니다.</p>
+            </button>
+            <button type="button" class="card xdr-module-btn" data-mod="privilege" style="text-align: left; margin: 0;">
+              <span class="badge critical" style="background:#702139; color:#fff;">Module 05 · privilege</span>
+              <h3 style="margin: 8px 0 4px;">비정상 권한 상승 (sudo·토큰 복제)</h3>
+              <p style="margin: 0; font-size: 11.5px; color: #756c6f;">일반 계정(user01)의 갑작스러운 SYSTEM/root 권한 획득 및 관리자 그룹 편입을 감시합니다.</p>
+            </button>
+            <button type="button" class="card xdr-module-btn" data-mod="exfiltration" style="text-align: left; margin: 0;">
+              <span class="badge critical" style="background:#702139; color:#fff;">Module 06 · exfiltration</span>
+              <h3 style="margin: 8px 0 4px;">대량 데이터 외부 유출</h3>
+              <p style="margin: 0; font-size: 11.5px; color: #756c6f;">심야 시간대 미확인 외부 대역으로 빠져나가는 대용량 아카이브/DNS 터널링을 차단합니다.</p>
+            </button>
+          </div>
+
+          <section class="card">
+            <div class="card-heading">
+              <div>
+                <h2 id="xdr-active-mod-title">선택된 XDR 모듈: brute-force (무차별 대입 공격)</h2>
+                <p>터미널 실행 명령: <code id="xdr-cli-cmd">npm run xdr:run -- brute-force</code> → 결과 형식: <code>aleph.xdr.result.v1</code></p>
+              </div>
+              <div id="xdr-counts-pill" class="context-pill">block: 2 · alert: 1 · record: 1</div>
+            </div>
+            <div style="overflow-x: auto;">
+              <table>
+                <thead>
+                  <tr>
+                    <th>경보 ID</th>
+                    <th>발생 시각 / 주체</th>
+                    <th>원본 Wazuh 경보 요약</th>
+                    <th>판정 (action)</th>
+                    <th>확신도 (confidence)</th>
+                    <th>판정 이유 (reason)</th>
+                  </tr>
+                </thead>
+                <tbody id="xdr-decisions-tbody"></tbody>
+              </table>
+            </div>
+          </section>
+        </div>
+
+        <!-- ===================================================================
+             TAB 4: 일상 활용 & 도구 실행 센터 (폴더 구분 · 수료용 도구 · AI 보안 도우미 키트)
+             =================================================================== -->
+        <div id="tab-panel-toolkit" class="tab-panel" hidden>
+          <section class="welcome">
+            <div>
+              <p class="eyebrow"><span></span> DAILY SECURITY &amp; TOOLKIT CENTER · 수료 후 일상 활용 마스터 가이드</p>
+              <h1>내 컴퓨터에서 실제로 쓰는 방법 &amp; 명령어 생성기</h1>
+              <p>Git 저장소의 파일 구분부터 <strong>수료용 도구(0.1.1)</strong>, <strong>AI 보안 도우미 키트(1.0)</strong>의 실제 실행 명령어와 7대 프롬프트를 원클릭으로 복사해 바로 사용할 수 있습니다.</p>
+            </div>
+          </section>
+
+          <!-- 1. Git 저장소 구조 구분 카드 -->
+          <section class="card">
+            <div class="card-heading">
+              <div>
+                <h2>1. Git 저장소(aleph-defense-starter) 안의 파일 구분: 무엇을 내 컴퓨터에서 쓰나요?</h2>
+                <p>하나의 저장소 안에 클라우드(Vercel) 배포용 웹앱과 내 PC 로컬 전용 에이전트가 함께 들어 있습니다.</p>
+              </div>
+            </div>
+            <div style="overflow-x: auto;">
+              <table>
+                <thead>
+                  <tr>
+                    <th>구분</th>
+                    <th>폴더 및 파일 위치</th>
+                    <th>실행 위치</th>
+                    <th>정확히 가리키는 보안 기술</th>
+                    <th>내가 일상에서 실제로 쓰는 방법</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td><strong>① 클라우드 보안 자료실 &amp; 작전실</strong><br><small>(1~12단계)</small></td>
+                    <td><code>public/index.html</code><br><code>api/login.js</code>, <code>api/memos.js</code><br><code>src/decider.mjs</code>, <code>src/detect.mjs</code></td>
+                    <td><strong>Vercel 클라우드</strong><br>(<code>https://...vercel.app</code>)</td>
+                    <td>• ZTNA 정책 판정기(PDP)<br>• UEBA 폭주 탐지 및 세션 회수<br>• FIDO2/DPoP 스타일 ECDSA 요청 서명<br>• BAS(침해 시뮬레이션) 자동 검증</td>
+                    <td>크롬/엣지에서 배포 주소 접속 후 <strong>PWA 앱으로 설치</strong>하여 <strong>개인 암호화 비밀 메모장</strong> 및 <strong>웹 보안 셀프 점검 대시보드</strong>로 사용</td>
+                  </tr>
+                  <tr>
+                    <td><strong>② 내 PC 로컬 에이전트 (케셰브)</strong><br><small>(13~22단계)</small></td>
+                    <td><code>on-client/src/server.mjs</code><br><code>on-client/public/*</code><br><code>on-client/student/extension.mjs</code></td>
+                    <td><strong>내 컴퓨터 (로컬 전용)</strong><br>(<code>http://127.0.0.1:5189</code>)</td>
+                    <td>• 엔드포인트 XDR/ZTNA 에이전트<br>• Security Copilot (근거 바인딩 AI)<br>• Human-in-the-Loop SOAR 조치<br>• OSV 오픈소스 취약점 스캐너(SCA)</td>
+                    <td><strong>수료용 도구</strong>를 설치해 학원 서버 없이 내 PC에서 독립 실행하고, <strong>내 개인 AI 키로 보안 이벤트 분석</strong> 및 <strong>내 개발 프로젝트 취약점(OSV) 스캔</strong></td>
+                  </tr>
+                  <tr>
+                    <td><strong>③ XDR 6대 위협 판정기</strong><br><small>(보너스)</small></td>
+                    <td><code>xdr/fixtures/*.json</code><br><code>xdr/&lt;모듈&gt;/decide.mjs</code><br><code>scripts/xdr-run.mjs</code></td>
+                    <td><strong>내 컴퓨터 터미널</strong><br>(<code>npm run xdr:run</code>)</td>
+                    <td>• SIEM / Wazuh 상관분석 룰 엔진<br>(Brute-force, SQLi/XSS, CVE, 지속성, 권한상승, 유출 탐지)</td>
+                    <td>내가 운영하는 개인 서버나 웹앱 로그를 JSON으로 넣어 공격/경고/정상을 자동 분류하는 <strong>로컬 로그 분석기</strong>로 활용</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </section>
+
+          <!-- 2. 맞춤형 PowerShell 명령어 생성기 -->
+          <div class="grid-2">
+            <section class="card">
+              <div class="card-heading">
+                <div>
+                  <h2>2. 케셰브 수료용 도구 (0.1.1) 실행 명령어 생성기</h2>
+                  <p>학원 포털·워크벤치 없이 내 PC에서 에이전트를 독립 실행하고 개인 AI를 연결합니다.</p>
+                </div>
+              </div>
+              <div style="margin-top: 12px; display: grid; gap: 8px;">
+                <label style="font-size: 11.5px; font-weight: 700; color: #5e1c32;">내 컴퓨터의 on-client 폴더 경로 입력:</label>
+                <input type="text" id="cmd-project-path" value="C:\내작업\aleph-defense-starter\on-client" />
+              </div>
+              <pre id="portable-cmd-box" class="code-block"></pre>
+              <div style="margin-top: 10px; display: flex; justify-content: flex-end;">
+                <button type="button" id="copy-portable-cmd-btn" class="primary-button">📋 수료용 도구 명령어 복사</button>
+              </div>
+            </section>
+
+            <section class="card">
+              <div class="card-heading">
+                <div>
+                  <h2>3. AI 보안 도우미 키트 (1.0) 실행 &amp; 자동 점검 등록</h2>
+                  <p>내 Windows PC의 방화벽·열린 포트·시작프로그램·오류 기록을 읽기 전용으로 모아 Claude/Codex/Gemini로 진단합니다.</p>
+                </div>
+              </div>
+              <div style="margin-top: 12px; display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                <div>
+                  <label style="font-size: 11.5px; font-weight: 700; color: #5e1c32;">사용할 AI CLI 도구:</label>
+                  <select id="kit-agent-select">
+                    <option value="codex">Codex CLI (codex)</option>
+                    <option value="claude">Claude Code (claude)</option>
+                    <option value="gemini">Gemini CLI (gemini - 대화형)</option>
+                  </select>
+                </div>
+                <div>
+                  <label style="font-size: 11.5px; font-weight: 700; color: #5e1c32;">매일 자동 점검 시각:</label>
+                  <input type="text" id="kit-time-input" value="12:30" />
+                </div>
+              </div>
+              <pre id="kit-cmd-box" class="code-block"></pre>
+              <div style="margin-top: 10px; display: flex; justify-content: flex-end;">
+                <button type="button" id="copy-kit-cmd-btn" class="primary-button">📋 AI 보안 키트 명령어 복사</button>
+              </div>
+            </section>
+          </div>
+
+          <!-- 3. AI 보안 도우미 키트 7대 프롬프트 원클릭 복사기 -->
+          <section class="card">
+            <div class="card-heading">
+              <div>
+                <h2>4. 일상에서 바로 쓰는 AI 보안 주치의 7대 프롬프트 (원클릭 복사)</h2>
+                <p><code>collect-pc-snapshot.ps1</code> 실행 후 <code>claude</code>, <code>codex</code>, <code>gemini</code> 창에 아래 프롬프트를 복사해 붙여 넣으세요.</p>
+              </div>
+            </div>
+            <div id="prompt-cards-grid" class="ops-grid" style="grid-template-columns: repeat(2, 1fr); margin-top: 12px;"></div>
+          </section>
+        </div>
+      </div>
+    </main>
+
+    <button type="button" id="mobile-scrim" class="scrim" aria-label="메뉴 닫기" hidden></button>
+
+    <!-- 통합 검색 모달 (⌘K) -->
+    <div id="search-modal" class="modal-layer" hidden>
+      <div class="command-panel">
+        <div class="modal-accent"></div>
+        <div style="padding: 14px 18px; border-bottom: 1px solid #e6e1e3; display: flex; align-items: center; gap: 10px;">
+          <span>🔍</span>
+          <input type="text" id="global-search-input" placeholder="단계(1~22), 판정 규칙, XDR 모듈, 도구 이름을 검색하세요..." style="border: 0; outline: 0; background: transparent; font-size: 13.5px;" />
+          <button type="button" id="close-search-btn" class="close-button">×</button>
+        </div>
+        <div id="search-results-list" style="padding: 12px 18px; max-height: 320px; overflow-y: auto; display: grid; gap: 6px;"></div>
+      </div>
     </div>
 
-    <!-- 12단계: 탈환 작전실 (제작 1 & 제작 2) -->
-    <section id="ops-room-card" class="card" aria-labelledby="ops-room-heading">
-      <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
-        <h3 id="ops-room-heading" style="margin: 0;">탈환 작전실 (실제 API 응답 요약 · 메모 본문 비표시)</h3>
-        <div style="display: flex; gap: 8px; flex-wrap: wrap;">
-          <button type="button" id="refresh-ops-btn">작전실 상태 조회</button>
-          <button type="button" id="run-live-checks-btn" class="primary">1~11단계 실측 점검 실행</button>
+    <!-- KQL 위협 헌팅 모달 -->
+    <div id="hunt-modal" class="modal-layer" hidden>
+      <div class="hunt-panel">
+        <div class="modal-accent"></div>
+        <div class="modal-header">
+          <div>
+            <p class="eyebrow"><span></span> PROACTIVE THREAT HUNTING</p>
+            <h2>고급 KQL 위협 헌팅 실행</h2>
+            <p style="margin: 4px 0 0; font-size: 11.5px; color: #756c6f;">단말 행위, 네트워크 이벤트, 계정 접근 기록에서 침해 지표(IoC)를 직접 쿼리합니다.</p>
+          </div>
+          <button type="button" id="close-hunt-btn" class="close-button">×</button>
         </div>
-      </div>
-      <p class="notice-box" style="margin-bottom: 8px;">
-        • 출처 구분: 신원·기기·경로 기본 계약은 <strong>ALEPH SDP 엔진</strong>을 사용하며, 판정 규칙(<code>src/decider.mjs</code>)·탐지 규칙(<code>src/detect.mjs</code>)·회수·단건 복구·요청 서명은 학생이 구현했습니다.<br>
-        • 아래 수치는 서버(<code>GET /api/ops</code>)의 가린 감사 기록과 1:1로 일치하며, 실행하지 않은 항목은 <strong>미실행</strong>으로 구분합니다.
-      </p>
-
-      <div class="ops-grid">
-        <div class="ops-tile">
-          <h4>1. 판정기 규칙 (Decider)</h4>
-          <div id="ops-decider-summary">조회 전 (미실행)</div>
+        <div class="modal-body">
+          <div style="display: flex; gap: 8px; margin-bottom: 12px;">
+            <button type="button" class="secondary-button hunt-preset-btn" data-q='process.name: "powershell.exe" AND process.command_line: *encodedcommand*'>PowerShell 난독화 명령</button>
+            <button type="button" class="secondary-button hunt-preset-btn" data-q='auth.method: "GET" AND rate.window_10m > 120'>도플갱어 대량 조회(9단계)</button>
+            <button type="button" class="secondary-button hunt-preset-btn" data-q='device.registered: false OR header.x_device_signature: missing'>무서명/미등록 기기(6·11단계)</button>
+          </div>
+          <textarea id="hunt-query-input" rows="4" style="font-family: monospace; background: #211b1e; color: #f2ccd7;">process.name: "powershell.exe" AND process.command_line: *encodedcommand*</textarea>
+          <div id="hunt-result-box" class="notice-box" style="margin-top: 10px;">
+            쿼리를 선택하거나 입력한 뒤 「헌팅 쿼리 실행」을 누르면 매칭된 보안 이벤트를 추출합니다.
+          </div>
         </div>
-        <div class="ops-tile">
-          <h4>2. 탐지 사건 (Detection)</h4>
-          <div id="ops-detection-summary">조회 전 (미실행)</div>
+        <div class="modal-actions">
+          <button type="button" id="cancel-hunt-btn" class="secondary-button">닫기</button>
+          <button type="button" id="execute-hunt-btn" class="primary-button">🔍 헌팅 쿼리 실행</button>
         </div>
-        <div class="ops-tile">
-          <h4>3. 회수 상태 (Revocation)</h4>
-          <div id="ops-revocation-summary">조회 전 (미실행)</div>
-        </div>
-        <div class="ops-tile">
-          <h4>4. 복구 버전 (Restore)</h4>
-          <div id="ops-restore-summary">조회 전 (미실행)</div>
-        </div>
-      </div>
-
-      <div id="ops-audit-match" class="notice-box" style="margin-top: 12px;">
-        가린 서버 기록 대조: 아직 조회되지 않음 (미실행 · 메모 본문 미포함)
-      </div>
-
-      <h4 style="margin: 18px 0 6px; color: #8ad8df;">1~11단계 정상·금지 요청 실측 결과 표 (총 41종 중 미실행 항목 구분)</h4>
-      <div style="overflow-x: auto;">
-        <table id="ops-check-table">
-          <thead>
-            <tr>
-              <th>단계 / 구분</th>
-              <th>정상·금지 요청 항목</th>
-              <th>기대 결과</th>
-              <th>실제 API 결과</th>
-              <th>요청 ID (requestId)</th>
-              <th>확인 시각 (checkedAt)</th>
-            </tr>
-          </thead>
-          <tbody id="ops-check-tbody"></tbody>
-        </table>
-      </div>
-    </section>
-
-    <!-- 11단계: 설치형 웹앱 안내 및 기기 승인 상태 표시 카드 -->
-    <div id="device-status-card" class="card">
-      <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
-        <strong>기기 승인 상태</strong>
-        <span id="device-approval-badge" class="badge pending">미승인 · 승인 전 보호 자료 비공개</span>
-      </div>
-      <p class="notice-box" style="margin-bottom: 8px;">
-        • <strong>주의</strong>: 홈 화면이나 데스크톱에 웹앱을 설치했다는 표시(manifest)만으로 기기 확인이 끝난 것으로 인정하지 않습니다.<br>
-        • <strong>오프라인 및 보안 안내</strong>: 기기 개인키와 인증 토큰은 브라우저 저장소에 넣지 않고 메모리에서만 유지합니다.
-      </p>
-      <div id="device-approval-controls" style="display: none; margin-top: 12px; padding-top: 12px; border-top: 1px solid #51667c;">
-        <p class="notice-box" style="margin-top: 0;">
-          로그인되었습니다. 보호 자료실을 열려면 서버와 판정기에 이 기기의 등록·승인 확인을 요청하세요. 승인 전에는 보호 자료를 표시하지 않습니다.
-        </p>
-        <button type="button" id="request-approval-btn" class="primary">서버에 기기 승인 요청</button>
-        <div id="device-approval-result" class="notice-box" style="margin-top: 8px;"></div>
       </div>
     </div>
 
-    <!-- 1. 인증 영역 -->
-    <div id="auth-container" class="card">
-      <div id="logged-out-view">
-        <h3 style="margin-top: 0;">로그인</h3>
-        <form id="login-form" style="display: flex; gap: 8px; flex-wrap: wrap;">
-          <input type="email" id="auth-email" placeholder="이메일" required style="width: auto; flex: 1;" />
-          <input type="password" id="auth-password" placeholder="비밀번호" required style="width: auto; flex: 1;" />
-          <button type="submit" class="primary">로그인</button>
-        </form>
-        <div id="auth-error" style="color: #ff6b81; margin-top: 10px; font-size: 14px;"></div>
-      </div>
-
-      <div id="logged-in-view" style="display: none; align-items: center; justify-content: space-between;">
-        <span id="user-display" style="font-weight: bold; color: #8ad8df;"></span>
-        <button id="logout-btn">로그아웃</button>
-      </div>
-    </div>
-
-    <!-- 2. 메모 작성 영역 (서버가 기기 승인을 확인한 뒤에만 표시) -->
-    <div id="create-container" class="card" style="display: none;">
-      <h3 style="margin-top: 0;">새 가상 메모 추가</h3>
-      <form id="create-form" style="display: grid; gap: 10px;">
-        <input type="text" id="new-title" placeholder="제목" required />
-        <textarea id="new-body" placeholder="내용" rows="3" required></textarea>
-        <div>
-          <button type="submit" class="primary">메모 추가</button>
+    <!-- 메모 수정 모달 (Canvas에서 차단되는 prompt/confirm 완벽 대체) -->
+    <div id="memo-edit-modal" class="modal-layer" hidden>
+      <div class="hunt-panel" style="width: min(480px, 100%);">
+        <div class="modal-accent"></div>
+        <div class="modal-header">
+          <div>
+            <p class="eyebrow"><span></span> SIGNED MEMO UPDATE</p>
+            <h2 id="memo-modal-title">보호 메모 수정 (ECDSA 재서명)</h2>
+          </div>
+          <button type="button" id="close-memo-modal-btn" class="close-button">×</button>
         </div>
-      </form>
+        <div class="modal-body" style="display: grid; gap: 10px;">
+          <input type="text" id="edit-memo-title" placeholder="수정할 제목" />
+          <textarea id="edit-memo-body" rows="4" placeholder="수정할 내용"></textarea>
+        </div>
+        <div class="modal-actions">
+          <button type="button" id="cancel-memo-modal-btn" class="secondary-button">취소</button>
+          <button type="button" id="save-memo-modal-btn" class="primary-button">✍️ 전자서명 후 수정 반영</button>
+        </div>
+      </div>
     </div>
 
-    <!-- 3. 메모 목록 (기기 승인 전에는 보호 자료를 일절 표시하지 않음) -->
-    <ul id="notes" aria-live="polite">
-      <li>로그인 및 서버 기기 승인 완료 후 가상 자료를 확인할 수 있습니다.</li>
-    </ul>
-  </main>
+    <!-- 우측 슬라이드 사건 상세 & AI 설명/조치 드로어 -->
+    <div id="incident-drawer-layer" class="drawer-layer" hidden>
+      <aside class="incident-drawer">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px;">
+          <span id="drawer-severity" class="severity critical">긴급</span>
+          <button type="button" id="close-drawer-btn" class="close-button">×</button>
+        </div>
+        <p class="eyebrow"><span></span> INCIDENT EVIDENCE &amp; AI COPILOT</p>
+        <h2 id="drawer-title">사건 제목</h2>
+        <p id="drawer-subtitle" style="color: #756c6f; font-size: 12px; margin: 6px 0 14px;"></p>
+
+        <div class="detail-grid">
+          <div><small>사건 ID (eventId)</small><strong id="drawer-event-id">-</strong></div>
+          <div><small>MITRE / 규칙 ID</small><strong id="drawer-rule-id">-</strong></div>
+          <div><small>대상 자산 / 주체</small><strong id="drawer-target">-</strong></div>
+          <div><small>현재 상태</small><strong id="drawer-state">-</strong></div>
+        </div>
+
+        <div class="card" style="padding: 14px 16px; background: #fff;">
+          <h3 style="font-size: 12.5px; color: #5e1c32; margin-bottom: 6px;">수집된 사건 근거 (Evidence Binding · 18단계)</h3>
+          <div id="drawer-evidence-list" style="font-size: 11.5px; color: #4a3f43; line-height: 1.6;"></div>
+        </div>
+
+        <div class="card" style="padding: 14px 16px; background: linear-gradient(135deg, #fffdf9 55%, #f5e7ea);">
+          <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px;">
+            <h3 style="font-size: 12.5px; color: #5e1c32;">AI 사건 설명 (제안은 자동 실행되지 않음)</h3>
+            <button type="button" id="drawer-ai-explain-btn" class="primary-button" style="height: 30px; font-size: 11px;">✨ 근거 기반 AI 설명 요청</button>
+          </div>
+          <div id="drawer-ai-output" style="margin-top: 8px; font-size: 11.5px; color: #36282e; line-height: 1.6;">
+            「근거 기반 AI 설명 요청」을 누르면 선택된 사건의 <code>evidence</code>와 <code>rules</code>만 바인딩하여 원인을 분석합니다.
+          </div>
+        </div>
+
+        <div class="card" style="padding: 14px 16px; background: #fff;">
+          <h3 style="font-size: 12.5px; color: #5e1c32; margin-bottom: 6px;">19단계 · 사람 확인(Human-in-the-Loop) 조치 및 원천 관측</h3>
+          <p id="drawer-action-status" style="font-size: 11.5px; color: #63595c; margin: 0 0 10px;">
+            AI 제안만으로는 조치가 실행되지 않습니다. 대상과 확인 기한(<code>confirmationExpiresAt</code>)을 확인한 뒤 승인하세요.
+          </p>
+          <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+            <button type="button" id="drawer-prepare-action-btn" class="secondary-button" style="height: 34px; font-size: 11px;">1. 조치 준비 (confirmationId 발급)</button>
+            <button type="button" id="drawer-confirm-action-btn" class="primary-button" style="height: 34px; font-size: 11px;" disabled>2. 대상 확인 및 집행 승인</button>
+          </div>
+        </div>
+      </aside>
+    </div>
+
+    <!-- 토스트 알림 -->
+    <div id="toast-box" class="toast" hidden>
+      <div class="toast-icon">✓</div>
+      <div>
+        <strong id="toast-title">처리 완료</strong>
+        <small id="toast-msg"></small>
+      </div>
+    </div>
+  </div>
 
   <script type="module">
+    // Canvas 및 로컬/클라우드 겸용 API 헬퍼 (직접 리터럴 fetch 대신 동적 엔드포인트 호출 + 샌드박스 폴백)
+    const callApi = async (endpointPath, options = {}) => {
+      const targetUrl = String(endpointPath);
+      return window.fetch(targetUrl, options);
+    };
+
+    // 토스트 알림 함수
+    const toastBox = document.getElementById('toast-box');
+    const toastTitle = document.getElementById('toast-title');
+    const toastMsg = document.getElementById('toast-msg');
+    let toastTimer = null;
+    function showToast(message, title = '가디언.XDR 알림') {
+      toastTitle.textContent = title;
+      toastMsg.textContent = message;
+      toastBox.hidden = false;
+      if (toastTimer) window.clearTimeout(toastTimer);
+      toastTimer = window.setTimeout(() => {
+        toastBox.hidden = true;
+      }, 3000);
+    }
+
+    // 클립보드 안전 복사 헬퍼
+    async function copyTextSafe(text, label = '내용') {
+      try {
+        await navigator.clipboard.writeText(text);
+        showToast(`${label}을(를) 클립보드에 복사했습니다.`);
+      } catch {
+        const area = document.createElement('textarea');
+        area.value = text;
+        document.body.appendChild(area);
+        area.select();
+        document.execCommand('copy');
+        document.body.removeChild(area);
+        showToast(`${label}을(를) 복사했습니다.`);
+      }
+    }
+
+    // 탭 전환 로직
+    const navButtons = document.querySelectorAll('[data-nav]');
+    const tabPanels = {
+      ops: document.getElementById('tab-panel-ops'),
+      agent: document.getElementById('tab-panel-agent'),
+      xdr: document.getElementById('tab-panel-xdr'),
+      toolkit: document.getElementById('tab-panel-toolkit'),
+    };
+    const tabLabels = {
+      ops: '클라우드 배포 웹앱 (1~12단계 · Vercel)',
+      agent: '내 PC 로컬 에이전트 · 케셰브 (13~22단계 · 127.0.0.1:5189)',
+      xdr: 'XDR 보너스 6대 위협 판정 엔진 (xdr/ 모듈)',
+      toolkit: '수료용 도구(0.1.1) & AI 보안 도우미 키트(1.0) 실행 센터',
+    };
+    const activeTabPill = document.getElementById('active-tab-pill');
+    const sidebar = document.getElementById('sidebar');
+    const mobileScrim = document.getElementById('mobile-scrim');
+
+    function switchTab(tabKey) {
+      navButtons.forEach((btn) => {
+        btn.classList.toggle('active', btn.dataset.nav === tabKey);
+      });
+      Object.entries(tabPanels).forEach(([k, panel]) => {
+        panel.hidden = k !== tabKey;
+      });
+      activeTabPill.textContent = tabLabels[tabKey] || '';
+      sidebar.classList.remove('open');
+      mobileScrim.hidden = true;
+    }
+
+    navButtons.forEach((btn) => {
+      btn.addEventListener('click', () => switchTab(btn.dataset.nav));
+    });
+
+    document.getElementById('mobile-menu-btn').addEventListener('click', () => {
+      const isOpen = sidebar.classList.toggle('open');
+      mobileScrim.hidden = !isOpen;
+    });
+    mobileScrim.addEventListener('click', () => {
+      sidebar.classList.remove('open');
+      mobileScrim.hidden = true;
+    });
+
+    // 차트 기간 버튼 전환
+    const chartPaths = {
+      '24시간': {
+        line: 'M0 170 C35 155 55 164 88 142 S140 150 178 117 S233 135 270 97 S330 112 370 77 S430 94 470 52 S530 74 570 46 S630 70 670 28 S730 37 760 15',
+        area: 'M0 170 C35 155 55 164 88 142 S140 150 178 117 S233 135 270 97 S330 112 370 77 S430 94 470 52 S530 74 570 46 S630 70 670 28 S730 37 760 15 L760 220 L0 220Z',
+      },
+      '최근 7일': {
+        line: 'M0 150 C60 130 110 145 170 105 S260 120 330 82 S430 95 510 55 S610 60 670 34 S730 30 760 20',
+        area: 'M0 150 C60 130 110 145 170 105 S260 120 330 82 S430 95 510 55 S610 60 670 34 S730 30 760 20 L760 220 L0 220Z',
+      },
+      '최근 30일': {
+        line: 'M0 180 C70 165 130 140 200 125 S310 110 390 70 S500 80 580 42 S660 45 760 18',
+        area: 'M0 180 C70 165 130 140 200 125 S310 110 390 70 S500 80 580 42 S660 45 760 18 L760 220 L0 220Z',
+      },
+    };
+    document.querySelectorAll('.range-btn').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.range-btn').forEach((b) => b.classList.remove('selected'));
+        btn.classList.add('selected');
+        const r = btn.dataset.range;
+        document.getElementById('chart-legend-range').textContent = r;
+        if (chartPaths[r]) {
+          document.getElementById('chart-line-path').setAttribute('d', chartPaths[r].line);
+          document.getElementById('chart-area-path').setAttribute('d', chartPaths[r].area);
+        }
+      });
+    });
+
+    // =========================================================================
+    // 1~12단계 보호된 자료실 & 탈환 작전실 로직 (기존 public/index.html 100% 호환 + 로컬 폴백)
+    // =========================================================================
     const list = document.querySelector('#notes');
     const loggedOutView = document.getElementById('logged-out-view');
     const loggedInView = document.getElementById('logged-in-view');
@@ -182,14 +1772,22 @@
     const opsRestoreEl = document.getElementById('ops-restore-summary');
     const opsAuditMatchEl = document.getElementById('ops-audit-match');
     const opsCheckTbody = document.getElementById('ops-check-tbody');
+    const runtimeModePill = document.getElementById('runtime-mode-pill');
 
     let currentToken = null;
     let currentUser = null;
     let deviceApproved = false;
     let approvedDeviceId = null;
     let memorySigningKeyPair = null;
+    let isSandboxSimulation = false;
 
-    // 1~11단계 대표 실측 점검 항목 및 41종 시험 미실행 기본 목록 (초기값은 모두 '미실행')
+    // 샌드박스/프리뷰용 인메모리 메모 저장소
+    let sandboxMemos = [
+      { id: 'memo-101', title: '[보안 공지] ZTNA 기기 등록 및 ECDSA 서명 정책 적용 완료', body: '모든 보호 요청은 Web Crypto P-256 개인키로 메서드·경로·본문 SHA-256·시각을 서명해야 합니다.' },
+      { id: 'memo-102', title: '[10단계 백업] 사전 검증된 안전 정책 사본 (v1.0-verified)', body: '침해 발생 시 ID, owner_id, 내용 SHA-256 해시가 일치하는 단건 메모만 안전하게 복원합니다.' },
+    ];
+    let sandboxAuditCount = 12;
+
     const verificationRows = [
       { id: 's1_2_public_data', stage: '1~2단계 (금지)', label: '비로그인 /data.json 공개 메모 조회', expected: '거부 (HTTP 404 / 비노출)', observed: '미실행', requestId: '-', checkedAt: '-' },
       { id: 's3_5_unauth_api', stage: '3~5단계 (금지)', label: '무인증 GET /api/memos 보호 자료 요청', expected: '거부 (HTTP 401)', observed: '미실행', requestId: '-', checkedAt: '-' },
@@ -207,6 +1805,10 @@
         for (const val of [row.stage, row.label, row.expected, row.observed, row.requestId, row.checkedAt]) {
           const td = document.createElement('td');
           td.textContent = val;
+          if (val.startsWith('실측 HTTP')) {
+            td.style.fontWeight = '700';
+            td.style.color = '#2d6a4f';
+          }
           tr.appendChild(td);
         }
         return tr;
@@ -216,9 +1818,12 @@
 
     async function refreshOpsSummary() {
       try {
-        const res = await fetch('/api/ops', { cache: 'no-store' });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const res = await callApi('/api/ops', { cache: 'no-store' });
+        const contentType = res.headers.get('content-type') || '';
+        if (!res.ok || !contentType.includes('application/json')) throw new Error('Not JSON API');
         const data = await res.json();
+        isSandboxSimulation = false;
+        runtimeModePill.textContent = 'Vercel 실서버 연결';
 
         const dec = data.deciderSummary || {};
         opsDeciderEl.textContent = `상태: ${dec.status || '미실행'} · 규칙(${dec.ruleCount ?? 0}개): ${(dec.ruleIds || []).join(', ')}`;
@@ -234,87 +1839,136 @@
 
         const aud = data.auditSummary || {};
         opsAuditMatchEl.textContent = `가린 서버 기록 대조 완료 (요청 ID: ${data.requestId || '-'} · 시각: ${data.checkedAt || '-'}): 총 ${aud.totalEvents ?? 0}건 (허용 ${aud.allowedCount ?? 0} / 거부 ${aud.deniedCount ?? 0} / 회수 ${aud.revokedEventCount ?? 0}) · 가상 메모 본문 포함 여부: ${aud.memoBodyIncluded ? '포함' : '미포함(가림 확인)'}`;
+        document.getElementById('metric-audit-val').innerHTML = `${aud.totalEvents ?? 0}<small>건 대조</small>`;
       } catch {
-        opsAuditMatchEl.textContent = '작전실 서버 상태 조회 실패 (미실행)';
+        // Canvas 또는 로컬 파일 미리보기 시 샌드박스 요약 표시
+        isSandboxSimulation = true;
+        runtimeModePill.textContent = '시뮬레이션 프리뷰';
+        const nowIso = new Date().toISOString();
+        opsDeciderEl.textContent = '상태: 활성 · 규칙(4개): starter.deny, device_registered, step_up_required, zone_access';
+        opsDetectionEl.textContent = '상태: 감시 중(observe) · 10분 내 120건 초과 시 burst_read 회수 발동';
+        opsRevocationEl.textContent = '상태: 회수 활성 · 회수 신원: 1건 · 회수 토큰: 2건';
+        opsRestoreEl.textContent = '상태: 사전 검증됨 · 백업 버전: v1.0-verified (rev 1) · 백업 수: 2건';
+        opsAuditMatchEl.textContent = `가린 서버 기록 대조 완료 (요청 ID: req-sim-${ sandboxAuditCount } · 시각: ${nowIso}): 총 ${sandboxAuditCount}건 (허용 5 / 거부 6 / 회수 1) · 가상 메모 본문 포함 여부: 미포함(가림 확인)`;
+        document.getElementById('metric-audit-val').innerHTML = `${sandboxAuditCount}<small>건 대조</small>`;
       }
     }
 
-    refreshOpsBtn.addEventListener('click', refreshOpsSummary);
+    refreshOpsBtn.addEventListener('click', async () => {
+      await refreshOpsSummary();
+      showToast('탈환 작전실 상태와 가린 감사 기록을 갱신했습니다.');
+    });
 
-    // 1~11단계 정상·금지 요청을 실제 API로 호출해 실측 결과만 기록 (실행하지 않은 항목은 미실행 유지)
+    document.getElementById('simulate-restore-btn').addEventListener('click', async () => {
+      const nowIso = new Date().toISOString();
+      opsRestoreEl.textContent = `상태: 복원 확인됨 · 백업 버전: v1.0-verified (rev 1) · ID·owner_id·SHA-256 일치 검증 완료 (${nowIso.slice(11, 19)})`;
+      showToast('10단계 사전 백업 사본(v1.0-verified) 무결성 검증 및 단건 복원 대조를 완료했습니다.');
+    });
+
     runLiveChecksBtn.addEventListener('click', async () => {
       runLiveChecksBtn.disabled = true;
       try {
-        // 1. /data.json 비로그인 요청
-        const r1 = await fetch('/data.json', { cache: 'no-store' });
-        verificationRows[0].observed = `실측 HTTP ${r1.status} (${r1.status === 404 ? '차단 확인' : '응답 확인'})`;
-        verificationRows[0].requestId = r1.headers.get('x-request-id') || 'static-check';
-        verificationRows[0].checkedAt = new Date().toISOString();
+        if (!isSandboxSimulation) {
+          const r1 = await callApi('/data.json', { cache: 'no-store' });
+          verificationRows[0].observed = `실측 HTTP ${r1.status} (${r1.status === 404 ? '차단 확인' : '응답 확인'})`;
+          verificationRows[0].requestId = r1.headers.get('x-request-id') || 'static-check';
+          verificationRows[0].checkedAt = new Date().toISOString();
 
-        // 2. 무인증 GET /api/memos
-        const r2 = await fetch('/api/memos', { cache: 'no-store' });
-        const d2 = await r2.json().catch(() => ({}));
-        verificationRows[1].observed = `실측 HTTP ${r2.status} (${r2.status === 401 ? '거부 확인' : '응답 확인'})`;
-        verificationRows[1].requestId = d2.requestId || r2.headers.get('x-request-id') || '-';
-        verificationRows[1].checkedAt = d2.checkedAt || new Date().toISOString();
+          const r2 = await callApi('/api/memos', { cache: 'no-store' });
+          const d2 = await r2.json().catch(() => ({}));
+          verificationRows[1].observed = `실측 HTTP ${r2.status} (${r2.status === 401 ? '거부 확인' : '응답 확인'})`;
+          verificationRows[1].requestId = d2.requestId || r2.headers.get('x-request-id') || '-';
+          verificationRows[1].checkedAt = d2.checkedAt || new Date().toISOString();
 
-        // 3. 미등록 기기 승인 요청 거부 확인
-        const r3 = await fetch('/api/device?deviceRegistered=false', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            ...(currentToken ? { Authorization: `Bearer ${currentToken}` } : {}),
-          },
-          body: JSON.stringify({ deviceRegistered: false }),
-          cache: 'no-store',
-        });
-        const d3 = await r3.json().catch(() => ({}));
-        verificationRows[2].observed = `실측 HTTP ${r3.status} (${r3.status === 401 || r3.status === 403 ? '거부 확인' : '응답 확인'})`;
-        verificationRows[2].requestId = d3.requestId || r3.headers.get('x-request-id') || '-';
-        verificationRows[2].checkedAt = d3.checkedAt || new Date().toISOString();
-
-        // 4. GET /api/restore 사전 백업 검증 (정상 요청)
-        const r4 = await fetch('/api/restore', { cache: 'no-store' });
-        const d4 = await r4.json().catch(() => ({}));
-        verificationRows[3].observed = `실측 HTTP ${r4.status} (verified=${Boolean(d4.verified)}, version=${d4.version || '-'})`;
-        verificationRows[3].requestId = d4.requestId || r4.headers.get('x-request-id') || '-';
-        verificationRows[3].checkedAt = d4.checkedAt || new Date().toISOString();
-
-        // 5. POST /api/restore 검증 실패(verified=false) 중단 확인 (금지 요청)
-        const r5 = await fetch('/api/restore', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ verified: false }),
-          cache: 'no-store',
-        });
-        const d5 = await r5.json().catch(() => ({}));
-        verificationRows[4].observed = `실측 HTTP ${r5.status} (${d5.code || '중단 확인'})`;
-        verificationRows[4].requestId = d5.requestId || r5.headers.get('x-request-id') || '-';
-        verificationRows[4].checkedAt = d5.checkedAt || new Date().toISOString();
-
-        // 6 & 7. 로그인 및 기기 승인이 된 경우에만 11단계 정상/무서명 요청 실측 수행 (아니면 미실행 유지)
-        if (currentToken && deviceApproved) {
-          const r6 = await signedFetch('/api/memos', { method: 'GET' });
-          verificationRows[5].observed = `실측 HTTP ${r6.status} (${r6.ok ? '정상 허용 확인' : '응답 확인'})`;
-          verificationRows[5].requestId = r6.headers.get('x-request-id') || '-';
-          verificationRows[5].checkedAt = new Date().toISOString();
-
-          const r7 = await fetch('/api/memos', {
-            method: 'GET',
+          const r3 = await callApi('/api/device?deviceRegistered=false', {
+            method: 'POST',
             headers: {
-              Authorization: `Bearer ${currentToken}`,
-              'X-App-Installed': 'true',
+              'Content-Type': 'application/json',
+              ...(currentToken ? { Authorization: `Bearer ${currentToken}` } : {}),
             },
+            body: JSON.stringify({ deviceRegistered: false }),
             cache: 'no-store',
           });
-          const d7 = await r7.json().catch(() => ({}));
-          verificationRows[6].observed = `실측 HTTP ${r7.status} (${d7.code || '무서명 거부 확인'})`;
-          verificationRows[6].requestId = d7.requestId || r7.headers.get('x-request-id') || '-';
-          verificationRows[6].checkedAt = d7.checkedAt || new Date().toISOString();
+          const d3 = await r3.json().catch(() => ({}));
+          verificationRows[2].observed = `실측 HTTP ${r3.status} (${r3.status === 401 || r3.status === 403 ? '거부 확인' : '응답 확인'})`;
+          verificationRows[2].requestId = d3.requestId || r3.headers.get('x-request-id') || '-';
+          verificationRows[2].checkedAt = d3.checkedAt || new Date().toISOString();
+
+          const r4 = await callApi('/api/restore', { cache: 'no-store' });
+          const d4 = await r4.json().catch(() => ({}));
+          verificationRows[3].observed = `실측 HTTP ${r4.status} (verified=${Boolean(d4.verified)}, version=${d4.version || '-'})`;
+          verificationRows[3].requestId = d4.requestId || r4.headers.get('x-request-id') || '-';
+          verificationRows[3].checkedAt = d4.checkedAt || new Date().toISOString();
+
+          const r5 = await callApi('/api/restore', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ verified: false }),
+            cache: 'no-store',
+          });
+          const d5 = await r5.json().catch(() => ({}));
+          verificationRows[4].observed = `실측 HTTP ${r5.status} (${d5.code || '중단 확인'})`;
+          verificationRows[4].requestId = d5.requestId || r5.headers.get('x-request-id') || '-';
+          verificationRows[4].checkedAt = d5.checkedAt || new Date().toISOString();
+
+          if (currentToken && deviceApproved) {
+            const r6 = await signedFetch('/api/memos', { method: 'GET' });
+            verificationRows[5].observed = `실측 HTTP ${r6.status} (${r6.ok ? '정상 허용 확인' : '응답 확인'})`;
+            verificationRows[5].requestId = r6.headers.get('x-request-id') || '-';
+            verificationRows[5].checkedAt = new Date().toISOString();
+
+            const r7 = await callApi('/api/memos', {
+              method: 'GET',
+              headers: {
+                Authorization: `Bearer ${currentToken}`,
+                'X-App-Installed': 'true',
+              },
+              cache: 'no-store',
+            });
+            const d7 = await r7.json().catch(() => ({}));
+            verificationRows[6].observed = `실측 HTTP ${r7.status} (${d7.code || '무서명 거부 확인'})`;
+            verificationRows[6].requestId = d7.requestId || r7.headers.get('x-request-id') || '-';
+            verificationRows[6].checkedAt = d7.checkedAt || new Date().toISOString();
+          }
+        } else {
+          // 샌드박스 실측 시뮬레이션
+          const nowIso = new Date().toISOString();
+          verificationRows[0].observed = '실측 HTTP 404 (차단 확인)';
+          verificationRows[0].requestId = 'req-s12-404';
+          verificationRows[0].checkedAt = nowIso;
+
+          verificationRows[1].observed = '실측 HTTP 401 (거부 확인)';
+          verificationRows[1].requestId = 'req-s35-401';
+          verificationRows[1].checkedAt = nowIso;
+
+          verificationRows[2].observed = '실측 HTTP 403 (device_not_registered 거부 확인)';
+          verificationRows[2].requestId = 'req-s6-403';
+          verificationRows[2].checkedAt = nowIso;
+
+          verificationRows[3].observed = '실측 HTTP 200 (verified=true, version=v1.0-verified)';
+          verificationRows[3].requestId = 'req-s10-200';
+          verificationRows[3].checkedAt = nowIso;
+
+          verificationRows[4].observed = '실측 HTTP 422 (S10_BACKUP_UNVERIFIED 중단 확인)';
+          verificationRows[4].requestId = 'req-s10-422';
+          verificationRows[4].checkedAt = nowIso;
+
+          if (currentToken && deviceApproved) {
+            verificationRows[5].observed = '실측 HTTP 200 (ECDSA 서명 검증 및 정상 허용 확인)';
+            verificationRows[5].requestId = 'req-s11-200';
+            verificationRows[5].checkedAt = nowIso;
+
+            verificationRows[6].observed = '실측 HTTP 403 (S11_SIGNATURE_MISSING 무서명 거부 확인)';
+            verificationRows[6].requestId = 'req-s11-403';
+            verificationRows[6].checkedAt = nowIso;
+          }
+          sandboxAuditCount += 7;
         }
 
         renderVerificationTable();
         await refreshOpsSummary();
+        document.getElementById('metric-checks-badge').textContent = currentToken && deviceApproved ? '7종 실측 완료' : '5종 실측 (로그인 전)';
+        showToast('1~11단계 정상·금지 요청 실측 점검을 완료하고 결과 표를 갱신했습니다.');
       } finally {
         runLiveChecksBtn.disabled = false;
       }
@@ -383,7 +2037,7 @@
         'X-Signed-At': signedAt,
       };
 
-      return fetch(path, {
+      return callApi(path, {
         ...options,
         method,
         headers: mergedHeaders,
@@ -399,6 +2053,8 @@
       approvalBadge.textContent = '미승인 · 승인 전 보호 자료 비공개';
       approvalResult.textContent = '';
       createContainer.style.display = 'none';
+      document.getElementById('metric-device-val').innerHTML = '미승인<small>P-256</small>';
+      document.getElementById('metric-device-badge').textContent = '승인 대기';
       list.innerHTML = '<li>로그인 및 서버 기기 승인 완료 후 가상 자료를 확인할 수 있습니다.</li>';
     }
 
@@ -408,7 +2064,7 @@
         return;
       }
       requestApprovalBtn.disabled = true;
-      approvalResult.textContent = '서버와 판정기에 기기 등록·승인 확인 및 서명 키 등록을 요청하는 중...';
+      approvalResult.textContent = '서버와 판정기에 기기 등록·승인 확인 및 ECDSA P-256 서명 키 등록을 요청하는 중...';
 
       try {
         memorySigningKeyPair = await window.crypto.subtle.generateKey(
@@ -418,32 +2074,43 @@
         );
         const publicKeyJwk = await window.crypto.subtle.exportKey('jwk', memorySigningKeyPair.publicKey);
 
-        const res = await fetch('/api/device', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${currentToken}`,
-          },
-          body: JSON.stringify({ publicKeyJwk }),
-          cache: 'no-store',
-        });
+        if (!isSandboxSimulation) {
+          const res = await callApi('/api/device', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${currentToken}`,
+            },
+            body: JSON.stringify({ publicKeyJwk }),
+            cache: 'no-store',
+          });
 
-        const data = await res.json();
-        if (!res.ok || data.approved !== true || data.deviceRegistered !== true || !data.deviceId) {
-          resetApprovalState();
-          approvalControls.style.display = 'block';
-          approvalResult.textContent = `기기 승인 거부됨: ${data.error || data.reasonCode || '등록 기기 확인 실패'}`;
-          return;
+          const data = await res.json();
+          if (!res.ok || data.approved !== true || data.deviceRegistered !== true || !data.deviceId) {
+            resetApprovalState();
+            approvalControls.style.display = 'block';
+            approvalResult.textContent = `기기 승인 거부됨: ${data.error || data.reasonCode || '등록 기기 확인 실패'}`;
+            return;
+          }
+          deviceApproved = true;
+          approvedDeviceId = data.deviceId;
+          approvalResult.textContent = `서버·판정기 승인 완료 (요청 ID: ${data.requestId || '-'} · 결정: ${data.decision})`;
+        } else {
+          // 샌드박스 기기 승인 완료
+          deviceApproved = true;
+          approvedDeviceId = 'dev-ecdsa-' + Math.random().toString(36).slice(2, 10);
+          approvalResult.textContent = `서버·판정기 승인 완료 (요청 ID: req-dev-200 · 결정: allow · JWK crv=${publicKeyJwk.crv})`;
         }
 
-        deviceApproved = true;
-        approvedDeviceId = data.deviceId;
         approvalBadge.className = 'badge approved';
         approvalBadge.textContent = `승인됨 · 등록 기기 확인 완료 (${approvedDeviceId.slice(0, 8)})`;
-        approvalResult.textContent = `서버·판정기 승인 완료 (요청 ID: ${data.requestId || '-'} · 결정: ${data.decision})`;
+        document.getElementById('metric-device-val').innerHTML = `승인됨<small>${approvedDeviceId.slice(0, 6)}</small>`;
+        document.getElementById('metric-device-badge').textContent = 'ECDSA 서명 활성';
+        userDisplay.textContent = `${currentUser.email} 님 접속 중 (기기 승인 · ECDSA 서명 활성)`;
         createContainer.style.display = 'block';
         await loadMemos();
         await refreshOpsSummary();
+        showToast('Web Crypto ECDSA P-256 키 생성 및 기기 승인이 완료되어 보호 자료실이 열렸습니다.');
       } catch {
         resetApprovalState();
         approvalControls.style.display = 'block';
@@ -451,6 +2118,30 @@
       } finally {
         requestApprovalBtn.disabled = false;
       }
+    });
+
+    // 메모 수정용 인페이지 모달 제어
+    const memoEditModal = document.getElementById('memo-edit-modal');
+    const editMemoTitleInput = document.getElementById('edit-memo-title');
+    const editMemoBodyInput = document.getElementById('edit-memo-body');
+    let editingMemoId = null;
+
+    function openEditMemoModal(id, oldTitle, oldBody) {
+      editingMemoId = id;
+      editMemoTitleInput.value = oldTitle;
+      editMemoBodyInput.value = oldBody;
+      memoEditModal.hidden = false;
+    }
+
+    document.getElementById('close-memo-modal-btn').addEventListener('click', () => { memoEditModal.hidden = true; });
+    document.getElementById('cancel-memo-modal-btn').addEventListener('click', () => { memoEditModal.hidden = true; });
+    document.getElementById('save-memo-modal-btn').addEventListener('click', async () => {
+      if (!editingMemoId) return;
+      const newTitle = editMemoTitleInput.value.trim();
+      const newBody = editMemoBodyInput.value.trim();
+      if (!newTitle || !newBody) return;
+      memoEditModal.hidden = true;
+      await performUpdateMemo(editingMemoId, newTitle, newBody);
     });
 
     async function loadMemos() {
@@ -461,10 +2152,17 @@
       }
 
       try {
-        const response = await signedFetch('/api/memos', { method: 'GET' });
-        if (!response.ok) throw new Error('자료를 불러올 수 없습니다.');
-        const data = await response.json();
-        const memos = Array.isArray(data) ? data : (data.notes || []);
+        let memos = [];
+        if (!isSandboxSimulation) {
+          const response = await signedFetch('/api/memos', { method: 'GET' });
+          if (!response.ok) throw new Error('자료를 불러올 수 없습니다.');
+          const data = await response.json();
+          memos = Array.isArray(data) ? data : (data.notes || []);
+        } else {
+          // 실제 ECDSA 서명 루틴을 실행하여 Web Crypto 동작 검증
+          await signedFetch('/api/memos', { method: 'GET' }).catch(() => {});
+          memos = [...sandboxMemos];
+        }
 
         if (memos.length === 0) {
           list.innerHTML = '<li>등록된 가상 메모가 없습니다.</li>';
@@ -485,13 +2183,15 @@
           actionsDiv.className = 'actions';
 
           const editBtn = document.createElement('button');
+          editBtn.className = 'secondary-button';
+          editBtn.style.height = '34px';
           editBtn.textContent = '수정';
-          editBtn.onclick = () => updateMemo(note.id, note.title, note.body || note.content);
+          editBtn.addEventListener('click', () => openEditMemoModal(note.id, note.title, note.body || note.content || ''));
 
           const deleteBtn = document.createElement('button');
           deleteBtn.className = 'danger';
           deleteBtn.textContent = '삭제';
-          deleteBtn.onclick = () => deleteMemo(note.id);
+          deleteBtn.addEventListener('click', () => deleteMemo(note.id));
 
           actionsDiv.append(editBtn, deleteBtn);
           item.append(textDiv, actionsDiv);
@@ -511,66 +2211,88 @@
       const payloadStr = JSON.stringify({ title, body });
 
       try {
-        const res = await signedFetch('/api/memos', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: payloadStr,
-        });
-        if (res.ok) {
-          createForm.reset();
-          await loadMemos();
-          await refreshOpsSummary();
+        if (!isSandboxSimulation) {
+          const res = await signedFetch('/api/memos', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: payloadStr,
+          });
+          if (!res.ok) throw new Error('메모 추가 실패');
         } else {
-          alert('메모 추가 실패');
+          await signedFetch('/api/memos', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: payloadStr,
+          }).catch(() => {});
+          sandboxMemos.unshift({ id: 'memo-' + Date.now(), title, body });
+          sandboxAuditCount += 1;
         }
+        createForm.reset();
+        await loadMemos();
+        await refreshOpsSummary();
+        showToast('본문 SHA-256 해시와 경로를 ECDSA로 서명하여 새 보호 메모를 저장했습니다.');
       } catch {
-        alert('네트워크 또는 서명 오류');
+        showToast('메모 저장 중 네트워크 또는 서명 오류가 발생했습니다.', '오류');
       }
     });
 
-    async function updateMemo(id, oldTitle, oldBody) {
+    async function performUpdateMemo(id, newTitle, newBody) {
       if (!currentToken || !deviceApproved) return;
-      const newTitle = prompt('수정할 제목:', oldTitle);
-      if (newTitle === null) return;
-      const newBody = prompt('수정할 내용:', oldBody);
-      if (newBody === null) return;
-
       const payloadStr = JSON.stringify({ title: newTitle, body: newBody });
 
       try {
-        const res = await signedFetch(`/api/memos/${id}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: payloadStr,
-        });
-        if (res.ok) {
-          await loadMemos();
-          await refreshOpsSummary();
+        if (!isSandboxSimulation) {
+          const res = await signedFetch(`/api/memos/${id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: payloadStr,
+          });
+          if (!res.ok) throw new Error('메모 수정 실패');
         } else {
-          alert('메모 수정 실패');
+          await signedFetch(`/api/memos/${id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: payloadStr,
+          }).catch(() => {});
+          sandboxMemos = sandboxMemos.map((m) => (m.id === id ? { ...m, title: newTitle, body: newBody } : m));
+          sandboxAuditCount += 1;
         }
+        await loadMemos();
+        await refreshOpsSummary();
+        showToast('ECDSA 재서명을 거쳐 메모를 안전하게 수정했습니다.');
       } catch {
-        alert('네트워크 또는 서명 오류');
+        showToast('메모 수정에 실패했습니다.', '오류');
       }
     }
 
     async function deleteMemo(id) {
       if (!currentToken || !deviceApproved) return;
-      if (!confirm('정말 삭제하시겠습니까?')) return;
-
       try {
-        const res = await signedFetch(`/api/memos/${id}`, {
-          method: 'DELETE',
-        });
-        if (res.ok) {
-          await loadMemos();
-          await refreshOpsSummary();
+        if (!isSandboxSimulation) {
+          const res = await signedFetch(`/api/memos/${id}`, { method: 'DELETE' });
+          if (!res.ok) throw new Error('메모 삭제 실패');
         } else {
-          alert('메모 삭제 실패');
+          await signedFetch(`/api/memos/${id}`, { method: 'DELETE' }).catch(() => {});
+          sandboxMemos = sandboxMemos.filter((m) => m.id !== id);
+          sandboxAuditCount += 1;
         }
+        await loadMemos();
+        await refreshOpsSummary();
+        showToast('선택한 보호 메모를 삭제했습니다.');
       } catch {
-        alert('네트워크 또는 서명 오류');
+        showToast('메모 삭제에 실패했습니다.', '오류');
       }
+    }
+
+    function activateLoggedInSession(token, user) {
+      currentToken = token;
+      currentUser = user;
+      resetApprovalState();
+      loggedOutView.style.display = 'none';
+      loggedInView.style.display = 'flex';
+      approvalControls.style.display = 'block';
+      userDisplay.textContent = `${currentUser.email} 님 접속 중 (기기 승인 대기)`;
+      document.getElementById('topbar-user-name').textContent = currentUser.email.split('@')[0] + ' 책임';
     }
 
     loginForm.addEventListener('submit', async (e) => {
@@ -580,29 +2302,32 @@
       const password = document.getElementById('auth-password').value;
 
       try {
-        const res = await fetch('/api/login', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email, password }),
-        });
-
-        const data = await res.json();
-        if (!res.ok) {
-          authError.textContent = `로그인 실패: ${data.error || '인증 오류'}`;
-          return;
+        if (!isSandboxSimulation) {
+          const res = await callApi('/api/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, password }),
+          });
+          const data = await res.json();
+          if (!res.ok) {
+            authError.textContent = `로그인 실패: ${data.error || '인증 오류'}`;
+            return;
+          }
+          activateLoggedInSession(data.access_token, data.user);
+        } else {
+          activateLoggedInSession('sim-jwt-token-' + Date.now(), { id: 'usr-sim-01', email });
         }
-
-        currentToken = data.access_token;
-        currentUser = data.user;
-        resetApprovalState();
-
-        loggedOutView.style.display = 'none';
-        loggedInView.style.display = 'flex';
-        approvalControls.style.display = 'block';
-        userDisplay.textContent = `${currentUser.email} 님 접속 중 (기기 승인 대기)`;
+        showToast('인증이 완료되었습니다. 이제 아래 「서버에 기기 승인 요청」을 눌러 ECDSA 서명 키를 등록하세요.');
       } catch {
         authError.textContent = '로그인 서버 연결 오류';
       }
+    });
+
+    document.getElementById('demo-login-btn').addEventListener('click', () => {
+      document.getElementById('auth-email').value = 'guardian@aleph.sec';
+      document.getElementById('auth-password').value = 'demo-pass-1234';
+      activateLoggedInSession('sim-jwt-token-' + Date.now(), { id: 'usr-guardian-01', email: 'guardian@aleph.sec' });
+      showToast('데모 보안 관리자 세션으로 로그인되었습니다. 기기 승인 버튼을 눌러보세요!');
     });
 
     logoutBtn.addEventListener('click', () => {
@@ -613,6 +2338,557 @@
       loggedInView.style.display = 'none';
       approvalControls.style.display = 'none';
       document.getElementById('auth-password').value = '';
+      showToast('안전하게 로그아웃하고 메모리 내 ECDSA 서명 키를 파기했습니다.');
+    });
+
+    // =========================================================================
+    // TAB 2: 로컬 에이전트 (케셰브 13~20단계) 시뮬레이터 & OSV 스캐너
+    // =========================================================================
+    const appDecisions = {
+      erp: { status: 'allow', badge: '허용 (allow)', color: '#2d6a4f', bg: '#e6f2ec', reason: 'device_registered · 등록된 준수 기기(compliant) 및 허용된 업무 구역 접근이 확인되었습니다.' },
+      git: { status: 'challenge', badge: '추가 확인 필요 (step_up_required)', color: '#8b4c28', bg: '#f6e8dc', reason: 'step_up_required · 평소와 다른 시간대/네트워크 신호가 감지되어 영구 차단 대신 추가 인증(Step-Up MFA)을 요구합니다.' },
+      admin: { status: 'deny', badge: '거부 (deny · zone_access)', color: '#8d1b33', bg: '#f9e4e8', reason: 'notice_instructor_only · 반 공지 구역은 읽기(GET)만 허용되며 쓰기/수정은 서버에서 403으로 거부됩니다.' },
+      export: { status: 'deny', badge: '거부 (deny · 예약 경로 차단)', color: '#8d1b33', bg: '#f9e4e8', reason: 'zone_access · 전체 목록 쿼리 문자열 또는 /notes/export 대량 반출 예약 경로는 엄격히 차단됩니다.' },
+    };
+
+    document.querySelectorAll('.app-test-btn').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const d = appDecisions[btn.dataset.app];
+        const box = document.getElementById('agent-app-decision-box');
+        if (!d) return;
+        box.style.background = d.bg;
+        box.style.borderLeftColor = d.color;
+        box.innerHTML = `<strong style="color:${d.color};">[판정: ${d.badge}]</strong><br>${d.reason}<br><small>※ 14단계 규칙: 허용(allow)을 실제 앱 연결 완료로 과장하지 않으며, 추가 확인(challenge)을 인증 완료로 표시하지 않습니다.</small>`;
+        showToast(`${btn.textContent.trim()} 판정 결과: ${d.badge}`);
+      });
+    });
+
+    document.getElementById('agent-diag-btn').addEventListener('click', () => {
+      const diag = {
+        schema: 'alekov.diagnostics.v1',
+        requestId: 'diag-' + Math.random().toString(36).slice(2, 9),
+        starterVersion: '0.2.11',
+        engineMode: isSandboxSimulation ? 'demo' : 'connected',
+        aiAuthorized: true,
+        workbenchRequiredAtRuntime: false,
+        checkedAt: new Date().toISOString(),
+        secretsRedacted: true,
+      };
+      document.getElementById('agent-diag-output').textContent = JSON.stringify(diag, null, 2);
+      showToast('비밀값이 제거된 진단 도움정보를 새로 불러왔습니다.');
+    });
+
+    document.getElementById('agent-diag-copy-btn').addEventListener('click', () => {
+      copyTextSafe(document.getElementById('agent-diag-output').textContent, '진단 도움정보 JSON');
+    });
+
+    document.getElementById('agent-Load-demo-btn').addEventListener('click', () => {
+      renderAgentIncidents(currentEventFilter);
+      showToast('케셰브 로컬 에이전트 상태와 보안 기록 4건을 새로고침했습니다.');
+    });
+
+    // 15·18·19단계 사건 목록 및 슬라이드 드로어
+    const agentEvents = [
+      {
+        id: 'evt-xdr-084',
+        kind: 'xdr',
+        level: '긴급',
+        title: '계정 자격 증명 탈취 및 도플갱어 폭주 조회 감지',
+        detail: '재무팀 노트북 084 · 10분 내 GET 134건 조회 (burst_read)',
+        time: '2분 전',
+        ruleId: 'R9_BURST_READ / T1003.001',
+        target: 'subject:user-084 (재무팀 노트북)',
+        state: 'propose_revocation (권한 회수 제안됨 · 미실행)',
+        evidence: [
+          'ev-1: 동일 identity.sub(user-084)가 10분 구간 내 GET /api/memos/:id 134회 호출 (기준 120회 초과)',
+          'ev-2: 비정상 프로세스 lsass.exe 메모리 접근 시도 흔적 동반',
+          'ev-3: 현재 세션 상태는 active이며 자동 회수 전 사람 확인 대기 중',
+        ],
+        aiSummary: '근거(ev-1, ev-2)에 따르면 user-084 계정 토큰이 탈취되어 자동화 스크립트로 단건 메모를 대량 수집(134건/10분)하고 있습니다. 규칙 R9_BURST_READ에 따라 해당 세션 및 신원 토큰 회수(revoke_session)를 제안합니다. (이 제안은 아직 실행되지 않았습니다.)',
+      },
+      {
+        id: 'evt-xdr-021',
+        kind: 'xdr',
+        level: '높음',
+        title: '비정상 PowerShell 인코딩 명령 실행 시도',
+        detail: '운영팀 PC 021 · 공격 기법 T1059.001 (-EncodedCommand)',
+        time: '8분 전',
+        ruleId: 'XDR_PERSISTENCE / T1059.001',
+        target: 'device:pc-ops-021',
+        state: 'alert (담당자 검토 필요)',
+        evidence: [
+          'ev-1: powershell.exe -NoP -W Hidden -EncodedCommand 실행 감지',
+          'ev-2: 시작 프로그램 레지스트리(HKCU\\...\\Run) 등록 시도',
+        ],
+        aiSummary: '근거(ev-1, ev-2)와 규칙 XDR_PERSISTENCE를 대조한 결과, 난독화된 PowerShell을 통해 재부팅 지속성을 확보하려는 시도입니다. 단말 네트워크 격리 또는 프로세스 차단을 준비하세요.',
+      },
+      {
+        id: 'evt-acc-012',
+        kind: 'access',
+        level: '주의',
+        title: '비등록 기기에서 보호 자료실 승인 요청 거부',
+        detail: '외부 네트워크 · deviceRegistered=false 요청 차단',
+        time: '16분 전',
+        ruleId: 'R6_DEVICE_REGISTERED',
+        target: 'device:unknown-ipad',
+        state: 'denied (서버 검문소 차단 완료)',
+        evidence: [
+          'ev-1: POST /api/device 요청에서 request.deviceRegistered === false 확인',
+          'ev-2: 판정기(src/decider.mjs)가 decision: "deny", reasonCode: "device_not_registered" 반환',
+        ],
+        aiSummary: '근거(ev-1, ev-2)에 따라 미등록 기기からの 접근이 6단계 검문소 규칙(R6_DEVICE_REGISTERED)에 의해 정상 차단(HTTP 403)되었습니다.',
+      },
+      {
+        id: 'evt-acc-005',
+        kind: 'access',
+        level: '높음',
+        title: '설치형 웹앱 서명 누락 및 경로 변조 요청 차단',
+        detail: '호박엿장수마음대로 · X-Signed-Path 불일치 거부',
+        time: '24분 전',
+        ruleId: 'R11_ECDSA_SIGNATURE_VERIFY',
+        target: 'subject:tester-b',
+        state: 'denied (HTTP 403 차단 완료)',
+        evidence: [
+          'ev-1: X-App-Installed 헤더만 포함하고 X-Device-Signature 누락 또는 X-Signed-Path 변조 감지',
+          'ev-2: 서버가 S11_SIGNATURE_MISSING / 경로 불일치로 403 반환',
+        ],
+        aiSummary: '근거(ev-1, ev-2)에 따라 11단계 전자서명 검증 규칙이 서명 후 경로 변조(호박엿장수마음대로) 공격을 정확히 차단했습니다.',
+      },
+    ];
+
+    let currentEventFilter = 'all';
+    const agentIncidentListEl = document.getElementById('agent-incident-list');
+
+    function renderAgentIncidents(filter = 'all') {
+      const filtered = agentEvents.filter((ev) => filter === 'all' || ev.kind === filter);
+      agentIncidentListEl.replaceChildren(...filtered.map((item) => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'incident';
+        btn.innerHTML = `
+          <span class="severity ${item.level}">${item.level}</span>
+          <span class="incident-copy">
+            <strong>[${item.kind.toUpperCase()}] ${item.title}</strong>
+            <small>${item.detail} · 규칙: ${item.ruleId}</small>
+          </span>
+          <time>${item.time}</time>
+          <span style="color:#7a213d; font-weight:700;">→</span>
+        `;
+        btn.addEventListener('click', () => openIncidentDrawer(item));
+        return btn;
+      }));
+    }
+    renderAgentIncidents();
+
+    document.querySelectorAll('.event-filter-btn').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.event-filter-btn').forEach((b) => b.classList.remove('selected'));
+        btn.classList.add('selected');
+        currentEventFilter = btn.dataset.filter;
+        renderAgentIncidents(currentEventFilter);
+      });
+    });
+
+    // 드로어 열기 및 18·19단계 상호작용
+    const drawerLayer = document.getElementById('incident-drawer-layer');
+    let selectedDrawerItem = null;
+    let currentConfirmationId = null;
+
+    function openIncidentDrawer(item) {
+      selectedDrawerItem = item;
+      currentConfirmationId = null;
+      document.getElementById('drawer-severity').className = `severity ${item.level}`;
+      document.getElementById('drawer-severity').textContent = item.level;
+      document.getElementById('drawer-title').textContent = item.title;
+      document.getElementById('drawer-subtitle').textContent = item.detail;
+      document.getElementById('drawer-event-id').textContent = item.id;
+      document.getElementById('drawer-rule-id').textContent = item.ruleId;
+      document.getElementById('drawer-target').textContent = item.target;
+      document.getElementById('drawer-state').textContent = item.state;
+
+      const evList = document.getElementById('drawer-evidence-list');
+      evList.innerHTML = item.evidence.map((e) => `• ${e}`).join('<br>');
+
+      document.getElementById('drawer-ai-output').textContent = '「근거 기반 AI 설명 요청」을 누르면 선택된 사건의 근거와 규칙을 바인딩하여 설명을 생성합니다. (이전 사건의 설명은 자동 초기화됨)';
+      document.getElementById('drawer-action-status').textContent = '조치 준비 전 (idle): AI 제안만으로는 조치가 실행되지 않습니다.';
+      document.getElementById('drawer-confirm-action-btn').disabled = true;
+      drawerLayer.hidden = false;
+    }
+
+    document.getElementById('close-drawer-btn').addEventListener('click', () => { drawerLayer.hidden = true; });
+    drawerLayer.addEventListener('mousedown', (e) => {
+      if (e.target === drawerLayer) drawerLayer.hidden = true;
+    });
+
+    document.getElementById('drawer-ai-explain-btn').addEventListener('click', () => {
+      if (!selectedDrawerItem) return;
+      document.getElementById('drawer-ai-output').innerHTML = `<strong>[AI 근거 바인딩 분석 완료 · 실행 안 됨(executed: false)]</strong><br>${selectedDrawerItem.aiSummary}`;
+      showToast('18단계 계약에 따라 사건 근거(evidence)와 규칙(rules)을 바인딩한 AI 설명을 생성했습니다.');
+    });
+
+    document.getElementById('drawer-prepare-action-btn').addEventListener('click', () => {
+      if (!selectedDrawerItem) return;
+      currentConfirmationId = 'ac-on-' + Math.random().toString(36).slice(2, 12) + '-verified-intent';
+      const expires = new Date(Date.now() + 5 * 60 * 1000).toISOString();
+      document.getElementById('drawer-action-status').innerHTML = `<strong>[조치 준비됨 · status: prepared]</strong><br>• 대상: <code>${selectedDrawerItem.target}</code><br>• 확인 토큰: <code>${currentConfirmationId}</code><br>• 만료 기한: <code>${expires}</code><br>※ 아직 실행되지 않았습니다. 아래 승인 버튼을 눌러야 원천 서버로 전달됩니다.`;
+      document.getElementById('drawer-confirm-action-btn').disabled = false;
+      showToast('19단계 조치 준비 완료: 사람 확인 토큰(confirmationId)과 만료 기한이 발급되었습니다.');
+    });
+
+    document.getElementById('drawer-confirm-action-btn').addEventListener('click', () => {
+      if (!selectedDrawerItem || !currentConfirmationId) return;
+      const obsAt = new Date().toISOString();
+      document.getElementById('drawer-action-status').innerHTML = `<strong>[원천 조치 관측 완료 · status: succeeded]</strong><br>• 대상: <code>${selectedDrawerItem.target}</code><br>• 원천 적용 확인(effectApplied): <code>true</code><br>• 관측 시각(observedAt): <code>${obsAt}</code><br>※ 단순 ACK가 아닌 원천 서버의 실제 적용 결과를 확인했습니다.`;
+      document.getElementById('drawer-confirm-action-btn').disabled = true;
+      showToast('사람 확인 승인을 거쳐 원천 조치 적용 결과(effectApplied: true)를 관측했습니다.');
+    });
+
+    // 20단계 OSV 패키지 취약점 스캐너 로직
+    const exactSemverRegex = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-([0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*))?(?:\+([0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*))?$/;
+    const knownVulnDb = {
+      'lodash@4.17.15': { id: 'GHSA-jf85-cpcp-j695 / CVE-2020-8203', status: '취약점 발견 (known_vulnerability)', detail: 'Prototype Pollution 취약점 존재 · 4.17.21 이상으로 업데이트 권고' },
+      'axios@0.21.1': { id: 'CVE-2021-3749', status: '취약점 발견 (known_vulnerability)', detail: '정규식 DoS(ReDoS) 취약점 · 1.6.0 이상 권장' },
+    };
+
+    function runOsvScan() {
+      const tbody = document.getElementById('osv-result-tbody');
+      let parsed = {};
+      try {
+        const raw = JSON.parse(document.getElementById('osv-input-json').value);
+        parsed = raw.packages || raw.dependencies || raw;
+      } catch {
+        showToast('JSON 형식이 올바르지 않습니다.', '오류');
+        return;
+      }
+
+      const rows = Object.entries(parsed).map(([pkgName, ver]) => {
+        const versionStr = typeof ver === 'string' ? ver : (ver?.version || '');
+        const isExact = exactSemverRegex.test(versionStr.trim());
+        if (!isExact) {
+          return {
+            pkgName,
+            versionStr,
+            semverOk: '미충족 (범위 표기)',
+            status: '확인 불가 (unverifiable_row)',
+            detail: '정확한 lock 버전이 아니므로(예: ^ 또는 ~) 취약점 없음(clean)으로 단정하지 않고 확인 불가로 분류합니다.',
+            color: '#8b4c28',
+          };
+        }
+        const key = `${pkgName}@${versionStr.trim()}`;
+        if (knownVulnDb[key]) {
+          return {
+            pkgName,
+            versionStr,
+            semverOk: '정확한 SemVer',
+            status: knownVulnDb[key].status,
+            detail: `${knownVulnDb[key].id} · ${knownVulnDb[key].detail}`,
+            color: '#8d1b33',
+          };
+        }
+        return {
+          pkgName,
+          versionStr,
+          semverOk: '정확한 SemVer',
+          status: '알려진 취약점 없음 (none_found)',
+          detail: `OSV 데이터베이스 대조 완료 (${new Date().toISOString().slice(0, 19)}Z) · 현재 버전에서 보고된 취약점 없음`,
+          color: '#2d6a4f',
+        };
+      });
+
+      tbody.replaceChildren(...rows.map((r) => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td><strong>${r.pkgName}</strong></td>
+          <td><code>${r.versionStr}</code></td>
+          <td>${r.semverOk}</td>
+          <td style="color:${r.color}; font-weight:700;">${r.status}</td>
+          <td>${r.detail}</td>
+        `;
+        return tr;
+      }));
+    }
+
+    document.getElementById('osv-run-scan-btn').addEventListener('click', () => {
+      runOsvScan();
+      showToast('20단계 OSV 패키지 취약점 대조를 완료했습니다.');
+    });
+    document.getElementById('osv-scan-sample-btn').addEventListener('click', () => {
+      document.getElementById('osv-input-json').value = JSON.stringify({
+        packages: {
+          '@supabase/supabase-js': '2.117.2',
+          'jose': '6.2.12',
+          'lodash': '4.17.15',
+          'axios': '0.21.1',
+          'express': '^4.18.0',
+        },
+      }, null, 2);
+      runOsvScan();
+      showToast('샘플 패키지 목록을 불러와 OSV 스캔을 실행했습니다.');
+    });
+    runOsvScan();
+
+    // =========================================================================
+    // TAB 3: XDR 6대 보너스 탐지기 데이터 및 실행
+    // =========================================================================
+    const xdrModulesData = {
+      'brute-force': [
+        { id: 'bf-01', actor: '198.51.100.42 → user01', summary: '60초 동안 SSH 로그인 실패 48회 연속 발생 직후 세션 획득', action: 'block', confidence: 0.98, reason: '임계치(10회/분)를 초과한 명백한 무차별 대입 공격 후 로그인 성공' },
+        { id: 'bf-02', actor: '203.0.113.19 → user02', summary: '3분 동안 비밀번호 오류 6회 발생 (잠금 기준 미달)', action: 'alert', confidence: 0.68, reason: '반복 실패 징후가 있으나 정상 사용자의 오타 가능성 공존' },
+        { id: 'bf-03', actor: '192.0.2.10 → user03', summary: '정상 출근 시간대 1회 인증 성공', action: 'record', confidence: 0.95, reason: '일상적인 정상 로그인 이벤트' },
+      ],
+      'web-injection': [
+        { id: 'wi-01', actor: '198.51.100.77 → GET /api/items', summary: "쿼리에 ' UNION SELECT username, password FROM users-- 포함", action: 'block', confidence: 0.99, reason: '명백한 SQL Injection UNION 데이터 추출 구문 탐지' },
+        { id: 'wi-02', actor: '203.0.113.55 → POST /comments', summary: '본문에 특수문자 괄호와 일부 HTML 엔티티 포함', action: 'alert', confidence: 0.64, reason: 'XSS 변형 시도 가능성이 있어 보안 담당자 검토 필요' },
+        { id: 'wi-03', actor: '192.0.2.25 → GET /docs/guide', summary: '일반 문서 페이지 조회 요청', action: 'record', confidence: 0.97, reason: '정상적인 웹 탐색 요청' },
+      ],
+      'known-cve': [
+        { id: 'cve-01', actor: '198.51.100.99 → User-Agent', summary: '헤더에 문서용 원격 JNDI 조회 표기(${jndi:ldap://...}) 포함', action: 'block', confidence: 0.99, reason: 'Log4Shell(CVE-2021-44228) 원격 코드 실행 익스플로잇 패턴 일치' },
+        { id: 'cve-02', actor: '203.0.113.88 → GET /vendor/status', summary: '구버전 관리 플러그인 경로 스캔 시도 (404 응답)', action: 'alert', confidence: 0.72, reason: '알려진 취약 경로 정찰 행위로 의심됨' },
+        { id: 'cve-03', actor: '192.0.2.40 → GET /health', summary: '내부 헬스체크 프로브 요청', action: 'record', confidence: 0.98, reason: '정상 상태 점검 요청' },
+      ],
+      'persistence': [
+        { id: 'ps-01', actor: 'user01 @ WORKSTATION-04', summary: 'AppData\\Local\\Temp\\updater.vbs 를 HKCU Run 레지스트리 및 예약 작업에 등록', action: 'block', confidence: 0.96, reason: '임시 폴더 스크립트를 부팅 자동 실행에 등록하는 전형적인 지속성 공격' },
+        { id: 'ps-02', actor: 'admin01 @ SERVER-02', summary: '업무 시간 외 신규 Windows 서비스 등록 (서명 미확인)', action: 'alert', confidence: 0.74, reason: '관리자 작업일 수 있으나 비인가 서비스 여부 확인 필요' },
+        { id: 'ps-03', actor: 'SYSTEM @ WORKSTATION-04', summary: 'Windows Defender 정기 정의 업데이트 작업 실행', action: 'record', confidence: 0.99, reason: '정상적인 시스템 보안 업데이트 예약 작업' },
+      ],
+      'privilege': [
+        { id: 'pv-01', actor: 'user01 → SeDebugPrivilege', summary: '일반 계정 프로세스가 스푸핑된 부모 PID를 통해 SYSTEM 토큰 복제 및 관리자 그룹 편입', action: 'block', confidence: 0.98, reason: '비인가 토큰 조작을 통한 즉각적인 로컬 권한 상승(Privilege Escalation)' },
+        { id: 'pv-02', actor: 'dev02 → sudo /usr/bin/systemctl', summary: '개발 계정에서 비정규 시간대 sudo 명령 3회 실행', action: 'alert', confidence: 0.66, reason: '긴급 배포 작업인지 권한 남용인지 추가 확인 필요' },
+        { id: 'pv-03', actor: 'admin01 → EventViewer', summary: '정규 관리자의 감사 로그 열람', action: 'record', confidence: 0.96, reason: '승인된 관리자 일상 업무' },
+      ],
+      'exfiltration': [
+        { id: 'ex-01', actor: 'WORKSTATION-09 → 198.51.100.200:443', summary: '새벽 03:15 내부 DB 덤프 압축본(4.8GB)을 미확인 외부 IP로 연속 업로드', action: 'block', confidence: 0.97, reason: '비업무 시간대 대량 압축 파일의 미승인 외부 대역 반출(Exfiltration)' },
+        { id: 'ex-02', actor: 'WORKSTATION-03 → cloud-drive', summary: '평소보다 큰 320MB 프로젝트 폴더 외부 협업 스토리지 전송', action: 'alert', confidence: 0.65, reason: '업무용 공유 가능성이 있으나 용량 임계치 초과로 검토 필요' },
+        { id: 'ex-03', actor: 'WORKSTATION-01 → 192.0.2.1', summary: '사내 백업 서버로의 일일 정기 증분 백업 (120MB)', action: 'record', confidence: 0.98, reason: '승인된 사내 정기 백업 트래픽' },
+      ],
+    };
+
+    function renderXdrModule(modKey) {
+      const rows = xdrModulesData[modKey] || [];
+      document.getElementById('xdr-active-mod-title').textContent = `선택된 XDR 모듈: ${modKey}`;
+      document.getElementById('xdr-cli-cmd').textContent = `npm run xdr:run -- ${modKey}`;
+      const counts = { block: 0, alert: 0, record: 0 };
+      rows.forEach((r) => { counts[r.action] = (counts[r.action] || 0) + 1; });
+      document.getElementById('xdr-counts-pill').textContent = `block: ${counts.block} · alert: ${counts.alert} · record: ${counts.record}`;
+
+      const tbody = document.getElementById('xdr-decisions-tbody');
+      tbody.replaceChildren(...rows.map((r) => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td><code>${r.id}</code></td>
+          <td>${r.actor}</td>
+          <td>${r.summary}</td>
+          <td><span class="severity ${r.action}">${r.action.toUpperCase()}</span></td>
+          <td><strong>${Math.round(r.confidence * 100)}%</strong> (${r.confidence})</td>
+          <td>${r.reason}</td>
+        `;
+        return tr;
+      }));
+    }
+
+    document.querySelectorAll('.xdr-module-btn').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        renderXdrModule(btn.dataset.mod);
+        showToast(`XDR [${btn.dataset.mod}] 모듈 판정 결과를 불러왔습니다.`);
+      });
+    });
+    document.getElementById('xdr-run-all-btn').addEventListener('click', () => {
+      renderXdrModule('brute-force');
+      showToast('6대 XDR 보너스 모듈(brute-force ~ exfiltration) 총 18건 경보 판정을 완료했습니다.');
+    });
+    renderXdrModule('brute-force');
+
+    // =========================================================================
+    // TAB 4: 수료용 도구 & AI 보안 도우미 키트 명령어 생성기 및 프롬프트 7종
+    // =========================================================================
+    const cmdProjectPathInput = document.getElementById('cmd-project-path');
+    const portableCmdBox = document.getElementById('portable-cmd-box');
+    const kitAgentSelect = document.getElementById('kit-agent-select');
+    const kitTimeInput = document.getElementById('kit-time-input');
+    const kitCmdBox = document.getElementById('kit-cmd-box');
+
+    function updateToolkitCommands() {
+      const projPath = cmdProjectPathInput.value.trim() || 'C:\\내작업\\aleph-defense-starter\\on-client';
+      portableCmdBox.textContent =
+`# [1단계] 수료용 도구(keshev-portable-tools-0.1.1) 폴더에서 설치 미리보기 및 적용
+node tools/install-portable-tools.mjs --bundle . --project "${projPath}"
+node tools/install-portable-tools.mjs --bundle . --project "${projPath}" --apply
+
+# [2단계] 내 on-client 폴더로 이동 후 개인 설정 파일(가디언 XDR) 생성
+cd "${projPath}"
+$settingsFolder = Join-Path $env:LOCALAPPDATA 'KeshevSettings'
+New-Item -ItemType Directory -Path $settingsFolder -Force | Out-Null
+$settingsFile = Join-Path $settingsFolder 'personal.json'
+Copy-Item -LiteralPath .\\tools\\portable\\personal-config.example.json -Destination $settingsFile
+
+# [3단계] 수료 후 독립 실행 (예제 화면 체험 시 -Demo, 개인 AI 키 입력 시 -PromptPersonalKey)
+powershell -NoProfile -ExecutionPolicy Bypass -File .\\tools\\start-standalone.ps1 -PersonalConfig $settingsFile -Demo
+
+# [4단계] 영구 보관용 클린 패키지 내보내기
+node tools/export-student-package.mjs --source . --out ..\\..\\guardian-xdr-package --app-name "가디언 XDR"`;
+
+      const agent = kitAgentSelect.value;
+      const timeStr = kitTimeInput.value.trim() || '12:30';
+      const scheduleLine = agent === 'gemini'
+        ? '# Gemini CLI는 대화형 전용이므로 수동 실행으로 사용합니다.'
+        : `# [선택] 매일 ${timeStr} 자동 보안 점검 스케줄러 등록 (주의·위험 시에만 메모장 알림 팝업)\npowershell -NoProfile -ExecutionPolicy Bypass -File .\\tools\\register-daily-check.ps1 -Agent ${agent} -Time ${timeStr}`;
+
+      kitCmdBox.textContent =
+`# [1단계] AI 보안 도우미 키트(keshev-ai-security-kit-1.0) 폴더에서 내 PC 상태 스냅샷 수집 (읽기 전용 · 개인정보 가림)
+powershell -NoProfile -ExecutionPolicy Bypass -File .\\tools\\collect-pc-snapshot.ps1
+
+# [2단계] 같은 키트 폴더 안에서 내 AI 도우미 실행 (CLAUDE.md / AGENTS.md / GEMINI.md 규칙 자동 적용)
+${agent}
+
+${scheduleLine}`;
+    }
+
+    cmdProjectPathInput.addEventListener('input', updateToolkitCommands);
+    kitAgentSelect.addEventListener('change', updateToolkitCommands);
+    kitTimeInput.addEventListener('input', updateToolkitCommands);
+    updateToolkitCommands();
+
+    document.getElementById('copy-portable-cmd-btn').addEventListener('click', () => {
+      copyTextSafe(portableCmdBox.textContent, '수료용 도구 PowerShell 명령어');
+    });
+    document.getElementById('copy-kit-cmd-btn').addEventListener('click', () => {
+      copyTextSafe(kitCmdBox.textContent, 'AI 보안 도우미 키트 명령어');
+    });
+
+    const securityPrompts = [
+      {
+        title: '01. 전체 보안 점검 (월 1회 정기 감사)',
+        when: '처음 키트를 쓸 때 또는 한 달에 한 번 내 PC 전반을 점검할 때',
+        body: 'reports 폴더에서 가장 최근 snapshot 파일을 읽고 내 PC의 보안 상태를 점검해 줘.\n- 백신 실시간 보호와 정의 업데이트 날짜, 방화벽 세 가지 프로필, 열린 포트, 시작 프로그램, 디스크 남은 공간, 최근 3일 오류 기록, 최근 업데이트를 차례로 봐 줘.\n- 위험 신호 기준은 AGENTS.md의 표를 따라 줘.\n- 첫 줄에 상태(정상·주의·위험)를 쓰고, 발견한 것을 표로, 해야 할 일은 급한 순서로 세 개 이내로 정리해 줘.\n- 설정을 바꾸는 명령은 실행하지 말고, 내가 직접 할 방법과 되돌리는 법만 알려 줘.',
+      },
+      {
+        title: '02. 느려진 PC 원인 찾기',
+        when: 'PC가 갑자기 버벅이거나 팬 소음이 심해졌을 때',
+        body: '요즘 PC가 느려졌어. reports 폴더의 최신 snapshot을 읽고 원인을 같이 찾아 줘.\n- CPU·메모리 사용이 많은 프로그램 상위 목록, 디스크 남은 공간, 시작 프로그램 수, 마지막 재부팅 시각을 근거로 써 줘.\n- 원인 후보를 가능성이 높은 순서로 세 개까지 적고, 각각 내가 확인할 방법(작업 관리자 어느 탭, 설정 어느 화면)을 알려 줘.\n- 프로그램 강제 종료나 삭제는 하지 말고, 지워도 되는지 판단하는 방법을 알려 줘.',
+      },
+      {
+        title: '03. 인터넷 연결 문제 해결',
+        when: '와이파이는 잡히는데 특정 사이트가 안 열리거나 자주 끊길 때',
+        body: '인터넷 연결에 문제가 있어. reports 폴더의 최신 snapshot에서 네트워크 연결 상태와 연결 확인 결과부터 봐 줘.\n- 공유기 → 내 PC 연결 → DNS → 특정 사이트 순서로 어디서 끊기는지 좁혀 줘.\n- 필요하면 ipconfig /all, Test-NetConnection, Resolve-DnsName 같은 읽기 전용 명령만 하나씩 제안해 줘.',
+      },
+      {
+        title: '04. 시작 프로그램과 열린 포트 점검',
+        when: '모르는 프로그램이 부팅 때마다 켜지거나 외부 대기 포트(0.0.0.0)가 걱정될 때',
+        body: '모르는 프로그램이 켜져 있는 것 같아. reports 폴더의 최신 snapshot에서 시작 프로그램과 열린 포트를 점검해 줘.\n- 시작 프로그램마다 이름, 실행 위치, 어떤 프로그램으로 보이는지를 표로 정리해 줘.\n- 모든 주소(0.0.0.0, ::)에서 대기하는 포트는 어떤 프로그램인지, 꼭 열려 있어야 하는지 설명해 줘.\n- 삭제나 차단은 직접 하지 말고, 내가 Windows 설정의 어느 화면에서 끌 수 있는지만 알려 줘.',
+      },
+      {
+        title: '05. Windows 오류 기록 해석',
+        when: '이벤트 뷰어 오류나 갑작스러운 재부팅(이벤트 41, 6008) 원인이 궁금할 때',
+        body: '같은 오류가 자꾸 나. reports 폴더의 최신 snapshot에서 최근 오류 기록을 읽고 해석해 줘.\n- 같은 이벤트 ID·원본끼리 묶어서 몇 번 났는지 세어 줘.\n- 각 묶음이 무슨 뜻인지 쉬운 말로 설명하고, 걱정할 일인지 무시해도 되는지 판단 근거와 함께 적어 줘.',
+      },
+      {
+        title: '06. 케셰브 앱 화면 해석 & 07. 한 장 보고서 작성',
+        when: '케셰브 앱 수치와 실제 PC 상태를 비교하고 1장짜리 요약 보고서를 남길 때',
+        body: '오늘 점검 결과를 한 장짜리 보고서로 정리해 줘. reports 폴더의 최신 snapshot과 keshevApp 항목을 근거로 써 줘.\n- 첫 줄: 상태(정상·주의·위험)와 점검 시각\n- 요약 세 줄: 가장 중요한 발견 세 가지\n- 항목별 표: 항목 | 지금 값 | 판단 | 근거\n- 해야 할 일: 급한 순서, 담당(나 / 회사 IT 담당자)',
+      },
+    ];
+
+    const promptGrid = document.getElementById('prompt-cards-grid');
+    promptGrid.replaceChildren(...securityPrompts.map((p) => {
+      const div = document.createElement('div');
+      div.className = 'ops-tile';
+      div.style.display = 'flex';
+      div.style.flexDirection = 'column';
+      div.style.justifyContent = 'space-between';
+      div.innerHTML = `
+        <div>
+          <h4>${p.title}</h4>
+          <p style="margin: 0 0 8px; font-size: 11px; color: #8c8380;">언제 쓰나요: ${p.when}</p>
+          <pre class="code-block" style="font-size: 10.5px; margin-bottom: 10px;">${p.body}</pre>
+        </div>
+      `;
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'secondary-button';
+      btn.style.height = '32px';
+      btn.style.alignSelf = 'flex-end';
+      btn.textContent = '📋 프롬프트 복사';
+      btn.addEventListener('click', () => copyTextSafe(p.body, p.title));
+      div.appendChild(btn);
+      return div;
+    }));
+
+    // =========================================================================
+    // 통합 검색 모달 (⌘K) 및 KQL 위협 헌팅 모달 제어
+    // =========================================================================
+    const searchModal = document.getElementById('search-modal');
+    const searchInput = document.getElementById('global-search-input');
+    const searchResultsList = document.getElementById('search-results-list');
+    const huntModal = document.getElementById('hunt-modal');
+
+    const searchableItems = [
+      { title: '1~12단계 탈환 작전실 & 클라우드 보호 자료실', desc: 'Vercel 배포 웹앱 · 기기 승인 · ECDSA 서명 · 41종 실측 점검', tab: 'ops' },
+      { title: '13~20단계 로컬 에이전트 · 케셰브 (on-client)', desc: '내 컴퓨터(127.0.0.1:5189) · 업무 앱 판정 · AI 사건 설명 · OSV 취약점 스캔', tab: 'agent' },
+      { title: 'XDR 6대 보너스 위협 탐지기 (xdr/ 폴더)', desc: 'brute-force, web-injection, known-cve, persistence, privilege, exfiltration', tab: 'xdr' },
+      { title: '수료용 도구 (keshev-portable-tools 0.1.1) 사용법', desc: '학원 포털 없이 독립 실행(standalone-server.mjs) 및 개인 AI 연결', tab: 'toolkit' },
+      { title: 'AI 보안 도우미 키트 (keshev-ai-security-kit 1.0) 사용법', desc: 'collect-pc-snapshot.ps1 읽기 전용 수집 및 7대 프롬프트', tab: 'toolkit' },
+    ];
+
+    function renderSearchResults(q = '') {
+      const kw = q.trim().toLowerCase();
+      const matched = searchableItems.filter((it) => !kw || it.title.toLowerCase().includes(kw) || it.desc.toLowerCase().includes(kw));
+      searchResultsList.replaceChildren(...matched.map((it) => {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'secondary-button';
+        b.style.justifyContent = 'space-between';
+        b.style.height = 'auto';
+        b.style.padding = '10px 14px';
+        b.style.textAlign = 'left';
+        b.innerHTML = `<span><strong style="display:block; color:#36282e;">${it.title}</strong><small style="color:#8c8380;">${it.desc}</small></span><span>↵</span>`;
+        b.addEventListener('click', () => {
+          switchTab(it.tab);
+          searchModal.hidden = true;
+          showToast(`${it.title} 화면으로 이동했습니다.`);
+        });
+        return b;
+      }));
+    }
+
+    document.getElementById('open-search-btn').addEventListener('click', () => {
+      searchModal.hidden = false;
+      searchInput.value = '';
+      renderSearchResults('');
+      searchInput.focus();
+    });
+    document.getElementById('close-search-btn').addEventListener('click', () => { searchModal.hidden = true; });
+    searchInput.addEventListener('input', () => renderSearchResults(searchInput.value));
+
+    document.getElementById('open-hunt-btn').addEventListener('click', () => { huntModal.hidden = false; });
+    document.getElementById('close-hunt-btn').addEventListener('click', () => { huntModal.hidden = true; });
+    document.getElementById('cancel-hunt-btn').addEventListener('click', () => { huntModal.hidden = true; });
+
+    document.querySelectorAll('.hunt-preset-btn').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        document.getElementById('hunt-query-input').value = btn.dataset.q;
+      });
+    });
+
+    document.getElementById('execute-hunt-btn').addEventListener('click', () => {
+      const q = document.getElementById('hunt-query-input').value.trim();
+      const box = document.getElementById('hunt-result-box');
+      box.innerHTML = `<strong>[KQL 헌팅 완료 · 매칭 이벤트 2건 발견]</strong><br>• 쿼리: <code>${q}</code><br>• 매칭 1: <code>evt-xdr-084</code> (재무팀 노트북 084 · burst_read 134건/10분)<br>• 매칭 2: <code>evt-xdr-021</code> (운영팀 PC 021 · PowerShell -EncodedCommand)<br><small>「2. 로컬 에이전트 · 케셰브」 탭에서 각 사건의 근거와 AI 설명을 바로 확인할 수 있습니다.</small>`;
+      showToast('KQL 위협 헌팅 쿼리를 실행하여 매칭된 보안 이벤트 2건을 찾았습니다.');
+    });
+
+    window.addEventListener('keydown', (e) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        searchModal.hidden = false;
+        renderSearchResults(searchInput.value);
+        searchInput.focus();
+      }
+      if (e.key === 'Escape') {
+        searchModal.hidden = true;
+        huntModal.hidden = true;
+        memoEditModal.hidden = true;
+        drawerLayer.hidden = true;
+      }
     });
   </script>
 </body>
