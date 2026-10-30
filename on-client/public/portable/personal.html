@@ -11,14 +11,41 @@
 </head>
 <body>
   <a class="skip-link" href="#main">본문으로 건너뛰기</a>
+  <input type="checkbox" id="nav-drawer-toggle" class="nav-drawer-checkbox" hidden>
+
   <header class="topbar">
-    <a href="/">내 보안 앱으로</a>
-    <span id="app-name">내 보안 앱</span>
-    <span class="badge">개인 AI · 설명 전용</span>
+    <div class="brand-group">
+      <label for="nav-drawer-toggle" class="hamburger-btn" role="button" tabindex="0" aria-label="메뉴 창 열기">☰</label>
+      <span class="brand-mark-dot"></span>
+      <span id="app-name">내 보안 앱</span>
+      <small class="sub-tag">SECURITY COPILOT</small>
+    </div>
+    <div class="topbar-right">
+      <a href="/" class="brand-back">← 메인 에이전트로 이동</a>
+      <span class="badge">개인 AI · 설명 전용</span>
+    </div>
   </header>
+
+  <label for="nav-drawer-toggle" class="drawer-scrim" aria-label="메뉴 창 닫기"></label>
+  <aside class="sidebar" aria-label="관제 메뉴">
+    <div class="drawer-header">
+      <div class="drawer-brand">
+        <span class="brand-mark-dot"></span>
+        <span>가디언.XDR · 관제 메뉴</span>
+      </div>
+      <label for="nav-drawer-toggle" class="drawer-close-btn" role="button" tabindex="0" aria-label="메뉴 창 닫기">×</label>
+    </div>
+    <p class="drawer-section-label">보안 에이전트 화면 이동</p>
+    <nav class="drawer-nav">
+      <a href="/" class="drawer-link">보호 현황 · 업무 앱 · 보안 기록</a>
+      <a href="/personal/" class="drawer-link active" aria-current="page">개인 AI · 보안 이벤트 설명</a>
+    </nav>
+    <p class="sidebar-note">좌측 상단 햄버거(☰) 아이콘으로 언제든 메뉴 창을 여닫을 수 있습니다.</p>
+  </aside>
+
   <main id="main" tabindex="-1">
     <div class="heading">
-      <div><p class="eyebrow">PERSONAL AI</p><h1>보안 이벤트를 근거와 함께 이해하기</h1></div>
+      <div><p class="eyebrow">PERSONAL AI · SECURITY COPILOT</p><h1>보안 이벤트를 근거와 함께 이해하기</h1></div>
       <div class="actions"><button id="refresh" type="button">상태 다시 확인</button><button id="cancel" type="button" disabled>요청 취소</button></div>
     </div>
     <p class="notice">개인 AI는 선택한 보안 이벤트를 설명하고 대응 방안을 제안합니다. 학원 AI나 공식 평가가 아니며, 보안 조치를 실행하지 않습니다. 페이지를 열거나 상태를 확인하는 것만으로 AI 설명을 요청하지 않습니다.</p>

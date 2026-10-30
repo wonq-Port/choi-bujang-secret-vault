@@ -11,9 +11,11 @@
 </head>
 <body>
   <a class="skip-link" href="#main">본문으로 건너뛰기</a>
+  <input type="checkbox" id="nav-drawer-toggle" class="nav-drawer-checkbox" hidden>
 
   <header class="topbar">
     <div class="brand">
+      <label for="nav-drawer-toggle" class="hamburger-btn" role="button" tabindex="0" aria-label="메뉴 창 열기">☰</label>
       <img class="alekov-art brand-icon" src="/assets/alekov/alekov-app-icon.webp" alt="" aria-hidden="true" width="32" height="32" draggable="false">
       <span class="brand-mark" id="brand-mark-fallback" aria-hidden="true" hidden>A</span>
       <span class="brand-name">케셰브 <small>ZTNA &amp; XDR 보안 Agent</small></span>
@@ -26,7 +28,16 @@
   </header>
 
   <div class="layout">
+    <label for="nav-drawer-toggle" class="drawer-scrim" aria-label="메뉴 창 닫기"></label>
     <nav class="sidebar" aria-label="주 메뉴">
+      <div class="drawer-header">
+        <div class="drawer-brand">
+          <span class="drawer-brand-dot"></span>
+          <span>가디언.XDR · 관제 메뉴</span>
+        </div>
+        <label for="nav-drawer-toggle" class="drawer-close-btn" role="button" tabindex="0" aria-label="메뉴 창 닫기">×</label>
+      </div>
+      <p class="drawer-section-label">보안 에이전트 워크스페이스</p>
       <div role="tablist" aria-orientation="vertical" id="nav">
         <button type="button" role="tab" id="tab-protection" data-testid="nav-protection" data-view="protection" aria-controls="view-protection" aria-selected="true" tabindex="0">보호 현황</button>
         <button type="button" role="tab" id="tab-apps" data-testid="nav-apps" data-view="apps" aria-controls="view-apps" aria-selected="false" tabindex="-1">업무 앱</button>

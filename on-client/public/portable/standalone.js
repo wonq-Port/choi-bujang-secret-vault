@@ -17,6 +17,18 @@ if (sidebar && !sidebar.querySelector('a[data-personal-ai-link]')) {
   link.textContent = '개인 AI · 보안 이벤트 설명';
   sidebar.append(link);
 }
+// Close slide-out hamburger menu drawer when a tab is selected or Escape is pressed
+const navToggle = document.getElementById('nav-drawer-toggle');
+if (navToggle) {
+  document.querySelectorAll('#nav [role="tab"]').forEach(tab => {
+    tab.addEventListener('click', () => { navToggle.checked = false; });
+  });
+  addEventListener('keydown', event => {
+    if (event.key === 'Escape' && navToggle.checked) {
+      navToggle.checked = false;
+    }
+  });
+}
 function refreshName() {
   invalidate();
   const operation = { generation, controller: new AbortController(), timer: null };
