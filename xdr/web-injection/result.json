@@ -1,0 +1,167 @@
+{
+  "schema": "aleph.xdr.result.v1",
+  "moduleKey": "web-injection",
+  "decisions": [
+    {
+      "alertId": "wi-01",
+      "action": "block",
+      "confidence": 0.95,
+      "reason": "반복된 SQL 구문 및 명령 구분자 주입 시도"
+    },
+    {
+      "alertId": "wi-02",
+      "action": "block",
+      "confidence": 0.95,
+      "reason": "반복된 스크립트 태그 및 혼합 주입 시도"
+    },
+    {
+      "alertId": "wi-03",
+      "action": "block",
+      "confidence": 0.9,
+      "reason": "반복된 경로 거슬러 올라가기(../) 탐색 시도"
+    },
+    {
+      "alertId": "wi-04",
+      "action": "block",
+      "confidence": 0.95,
+      "reason": "반복된 SQL 구문 및 명령 구분자 주입 시도"
+    },
+    {
+      "alertId": "wi-05",
+      "action": "block",
+      "confidence": 0.95,
+      "reason": "반복된 스크립트 태그 및 혼합 주입 시도"
+    },
+    {
+      "alertId": "wi-06",
+      "action": "block",
+      "confidence": 0.9,
+      "reason": "반복된 SQL 구문 및 명령 구분자 주입 시도"
+    },
+    {
+      "alertId": "wi-07",
+      "action": "block",
+      "confidence": 0.95,
+      "reason": "반복된 경로 거슬러 올라가기(../) 탐색 시도"
+    },
+    {
+      "alertId": "wi-08",
+      "action": "block",
+      "confidence": 0.9,
+      "reason": "반복된 SQL 구문 및 명령 구분자 주입 시도"
+    },
+    {
+      "alertId": "wi-09",
+      "action": "alert",
+      "confidence": 0.65,
+      "reason": "단발성 주입 의심 표기 또는 예약어 포함 검색"
+    },
+    {
+      "alertId": "wi-10",
+      "action": "alert",
+      "confidence": 0.55,
+      "reason": "단발성 주입 의심 표기 또는 예약어 포함 검색"
+    },
+    {
+      "alertId": "wi-11",
+      "action": "alert",
+      "confidence": 0.65,
+      "reason": "단발성 주입 의심 표기 또는 예약어 포함 검색"
+    },
+    {
+      "alertId": "wi-12",
+      "action": "alert",
+      "confidence": 0.65,
+      "reason": "단발성 주입 의심 표기 또는 예약어 포함 검색"
+    },
+    {
+      "alertId": "wi-13",
+      "action": "alert",
+      "confidence": 0.55,
+      "reason": "단발성 주입 의심 표기 또는 예약어 포함 검색"
+    },
+    {
+      "alertId": "wi-14",
+      "action": "alert",
+      "confidence": 0.65,
+      "reason": "단발성 주입 의심 표기 또는 예약어 포함 검색"
+    },
+    {
+      "alertId": "wi-15",
+      "action": "alert",
+      "confidence": 0.65,
+      "reason": "단발성 주입 의심 표기 또는 예약어 포함 검색"
+    },
+    {
+      "alertId": "wi-16",
+      "action": "alert",
+      "confidence": 0.75,
+      "reason": "단발성 주입 의심 표기 또는 예약어 포함 검색"
+    },
+    {
+      "alertId": "wi-17",
+      "action": "alert",
+      "confidence": 0.65,
+      "reason": "단발성 주입 의심 표기 또는 예약어 포함 검색"
+    },
+    {
+      "alertId": "wi-18",
+      "action": "record",
+      "confidence": 0.1,
+      "reason": "정상 웹 접근 이벤트 (T1190 패턴 미일치)"
+    },
+    {
+      "alertId": "wi-19",
+      "action": "record",
+      "confidence": 0.1,
+      "reason": "정상 웹 접근 이벤트 (T1190 패턴 미일치)"
+    },
+    {
+      "alertId": "wi-20",
+      "action": "record",
+      "confidence": 0.1,
+      "reason": "정상 웹 접근 이벤트 (T1190 패턴 미일치)"
+    },
+    {
+      "alertId": "wi-21",
+      "action": "record",
+      "confidence": 0.1,
+      "reason": "정상 웹 접근 이벤트 (T1190 패턴 미일치)"
+    },
+    {
+      "alertId": "wi-22",
+      "action": "record",
+      "confidence": 0.1,
+      "reason": "정상 웹 접근 이벤트 (T1190 패턴 미일치)"
+    },
+    {
+      "alertId": "wi-23",
+      "action": "record",
+      "confidence": 0.1,
+      "reason": "정상 웹 접근 이벤트 (T1190 패턴 미일치)"
+    },
+    {
+      "alertId": "wi-24",
+      "action": "record",
+      "confidence": 0.1,
+      "reason": "정상 웹 접근 이벤트 (T1190 패턴 미일치)"
+    },
+    {
+      "alertId": "wi-25",
+      "action": "record",
+      "confidence": 0.1,
+      "reason": "정상 웹 접근 이벤트 (T1190 패턴 미일치)"
+    },
+    {
+      "alertId": "wi-26",
+      "action": "record",
+      "confidence": 0.1,
+      "reason": "정상 웹 접근 이벤트 (T1190 패턴 미일치)"
+    }
+  ],
+  "counts": {
+    "block": 8,
+    "alert": 9,
+    "record": 9
+  }
+}

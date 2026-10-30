@@ -1,0 +1,31 @@
+{
+  "schema": "aleph.xdr.patterns.v1",
+  "moduleKey": "web-injection",
+  "mitre": "T1190",
+  "patterns": [
+    {
+      "id": "t1190-repeated-sql-command-injection",
+      "name": "반복된 SQL 구문 및 명령 구분자 주입 시도",
+      "condition": "rule.mitre 에 T1190 이 포함되고 rule.level >= 10 이며 요청 인자(data.url)나 설명에 SQL 구문·데이터베이스 조회·명령 구분자 주입 표기가 같은 주소에서 반복(data.count >= 8)된 경우",
+      "basis": "MITRE ATT&CK T1190 (Exploit Public-Facing Application): 외부 공개 웹 앱의 요청 인자에 SQL 구문이나 명령 구분자를 반복 주입해 데이터베이스 조회나 명령 실행을 시도하는 명확한 웹 주입 공격 신호입니다."
+    },
+    {
+      "id": "t1190-repeated-script-injection",
+      "name": "반복된 스크립트 태그 및 혼합 주입 시도",
+      "condition": "rule.mitre 에 T1190 이 포함되고 rule.level >= 10 이며 요청 인자(data.url)나 설명에 스크립트 삽입 표기 또는 스크립트·SQL 혼합 표식이 같은 주소에서 반복(data.count >= 8)된 경우",
+      "basis": "MITRE ATT&CK T1190 (Exploit Public-Facing Application): 웹 입력 칸이나 주소창 인자에 스크립트 태그 및 주입 표식을 반복 전달해 웹 앱 취약점을 악용하려는 명확한 공격 신호입니다."
+    },
+    {
+      "id": "t1190-repeated-path-traversal",
+      "name": "반복된 경로 거슬러 올라가기(../) 탐색 시도",
+      "condition": "rule.mitre 에 T1190 이 포함되고 rule.level >= 10 이며 요청 인자(data.url)나 설명에 경로를 여러 단계 거슬러 올라가거나 경로 이탈을 시도하는 표기가 반복(data.count >= 8)된 경우",
+      "basis": "MITRE ATT&CK T1190 (Exploit Public-Facing Application): 상위 디렉터리 이동(../) 표기를 반복 주입해 허용된 웹 경로 밖의 파일에 접근하려는 명확한 경로 이탈 공격 신호입니다."
+    },
+    {
+      "id": "t1190-single-ambiguous-query-marker",
+      "name": "단발성 주입 의심 표기 또는 예약어 포함 검색",
+      "condition": "rule.mitre 에 T1190 이 포함되고 rule.level 이 5~9 사이이거나 반복 없이(data.count < 8) 따옴표·수업 단어(select, script, SQL, up)·단발성 표기가 1건만 나타난 경우",
+      "basis": "MITRE ATT&CK T1190 (Exploit Public-Facing Application): 단발성 특수문자나 예약어 검색은 초기 탐색 징후일 수 있으나 정상적인 수업 자료 검색과 겹치므로 차단 대신 알림(alert)으로 감시합니다."
+    }
+  ]
+}
