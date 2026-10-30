@@ -1,0 +1,155 @@
+{
+  "schema": "aleph.xdr.result.v1",
+  "moduleKey": "persistence",
+  "decisions": [
+    {
+      "alertId": "ps-01",
+      "action": "block",
+      "confidence": 0.95,
+      "reason": "서명 없는 새 서비스 등록 및 서비스 실행 파일 변조"
+    },
+    {
+      "alertId": "ps-02",
+      "action": "block",
+      "confidence": 0.95,
+      "reason": "임시 폴더 실행 파일을 가리키는 낯선 예약 작업 등록"
+    },
+    {
+      "alertId": "ps-03",
+      "action": "block",
+      "confidence": 0.9,
+      "reason": "시작 폴더 미등록 프로그램 추가 및 예약 작업 이중 연결"
+    },
+    {
+      "alertId": "ps-04",
+      "action": "block",
+      "confidence": 0.95,
+      "reason": "서명 없는 새 서비스 등록 및 서비스 실행 파일 변조"
+    },
+    {
+      "alertId": "ps-05",
+      "action": "block",
+      "confidence": 0.9,
+      "reason": "임시 폴더 실행 파일을 가리키는 낯선 예약 작업 등록"
+    },
+    {
+      "alertId": "ps-06",
+      "action": "block",
+      "confidence": 0.95,
+      "reason": "서명 없는 새 서비스 등록 및 서비스 실행 파일 변조"
+    },
+    {
+      "alertId": "ps-07",
+      "action": "block",
+      "confidence": 0.95,
+      "reason": "시작 폴더 미등록 프로그램 추가 및 예약 작업 이중 연결"
+    },
+    {
+      "alertId": "ps-08",
+      "action": "block",
+      "confidence": 0.95,
+      "reason": "서명 없는 새 서비스 등록 및 서비스 실행 파일 변조"
+    },
+    {
+      "alertId": "ps-09",
+      "action": "alert",
+      "confidence": 0.65,
+      "reason": "수업 경로 예약 작업·단순 서비스 재시작 또는 단독 파일 생성 의심 징후"
+    },
+    {
+      "alertId": "ps-10",
+      "action": "alert",
+      "confidence": 0.65,
+      "reason": "수업 경로 예약 작업·단순 서비스 재시작 또는 단독 파일 생성 의심 징후"
+    },
+    {
+      "alertId": "ps-11",
+      "action": "alert",
+      "confidence": 0.55,
+      "reason": "수업 경로 예약 작업·단순 서비스 재시작 또는 단독 파일 생성 의심 징후"
+    },
+    {
+      "alertId": "ps-12",
+      "action": "alert",
+      "confidence": 0.65,
+      "reason": "수업 경로 예약 작업·단순 서비스 재시작 또는 단독 파일 생성 의심 징후"
+    },
+    {
+      "alertId": "ps-13",
+      "action": "alert",
+      "confidence": 0.75,
+      "reason": "수업 경로 예약 작업·단순 서비스 재시작 또는 단독 파일 생성 의심 징후"
+    },
+    {
+      "alertId": "ps-14",
+      "action": "alert",
+      "confidence": 0.65,
+      "reason": "수업 경로 예약 작업·단순 서비스 재시작 또는 단독 파일 생성 의심 징후"
+    },
+    {
+      "alertId": "ps-15",
+      "action": "alert",
+      "confidence": 0.65,
+      "reason": "수업 경로 예약 작업·단순 서비스 재시작 또는 단독 파일 생성 의심 징후"
+    },
+    {
+      "alertId": "ps-16",
+      "action": "alert",
+      "confidence": 0.55,
+      "reason": "수업 경로 예약 작업·단순 서비스 재시작 또는 단독 파일 생성 의심 징후"
+    },
+    {
+      "alertId": "ps-17",
+      "action": "record",
+      "confidence": 0.1,
+      "reason": "정상 시스템 및 세션 이벤트 (영속성 위협 미일치)"
+    },
+    {
+      "alertId": "ps-18",
+      "action": "record",
+      "confidence": 0.1,
+      "reason": "정상 시스템 및 세션 이벤트 (영속성 위협 미일치)"
+    },
+    {
+      "alertId": "ps-19",
+      "action": "record",
+      "confidence": 0.1,
+      "reason": "정상 시스템 및 세션 이벤트 (영속성 위협 미일치)"
+    },
+    {
+      "alertId": "ps-20",
+      "action": "record",
+      "confidence": 0.1,
+      "reason": "정상 시스템 및 세션 이벤트 (영속성 위협 미일치)"
+    },
+    {
+      "alertId": "ps-21",
+      "action": "record",
+      "confidence": 0.1,
+      "reason": "정상 시스템 및 세션 이벤트 (영속성 위협 미일치)"
+    },
+    {
+      "alertId": "ps-22",
+      "action": "record",
+      "confidence": 0.1,
+      "reason": "정상 시스템 및 세션 이벤트 (영속성 위협 미일치)"
+    },
+    {
+      "alertId": "ps-23",
+      "action": "record",
+      "confidence": 0.1,
+      "reason": "정상 시스템 및 세션 이벤트 (영속성 위협 미일치)"
+    },
+    {
+      "alertId": "ps-24",
+      "action": "record",
+      "confidence": 0.1,
+      "reason": "정상 시스템 및 세션 이벤트 (영속성 위협 미일치)"
+    }
+  ],
+  "counts": {
+    "block": 8,
+    "alert": 8,
+    "record": 8
+  }
+}
