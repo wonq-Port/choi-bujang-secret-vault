@@ -1,0 +1,31 @@
+{
+  "schema": "aleph.xdr.patterns.v1",
+  "moduleKey": "known-cve",
+  "mitre": "T1190",
+  "patterns": [
+    {
+      "id": "t1190-cve-2021-44228-header-jndi-lookup",
+      "name": "요청 머리글 안의 CVE-2021-44228 원격 조회 구문(jndi 형태) 악용 시도",
+      "condition": "rule.mitre 에 T1190 이 포함되고 rule.level >= 10 이며 요청 머리글(data.useragent 등)에 CVE-2021-44228 형태의 원격 조회 구문(jndi 형태)이 포함된 경우",
+      "basis": "CVE-2021-44228 및 MITRE ATT&CK T1190 (Exploit Public-Facing Application): 로그 라이브러리가 기록하는 요청 머리글에 jndi 원격 조회 구문을 심어 외부 명령 실행을 유도하는 명확한 취약점 악용 신호입니다."
+    },
+    {
+      "id": "t1190-cve-2021-44228-url-jndi-lookup",
+      "name": "요청 주소 인자 안의 CVE-2021-44228 원격 조회 구문(jndi 형태) 악용 시도",
+      "condition": "rule.mitre 에 T1190 이 포함되고 rule.level >= 10 이며 요청 주소·인자(data.url)에 CVE-2021-44228 형태의 원격 조회 구문(jndi 형태)이 단발 또는 반복 포함된 경우",
+      "basis": "CVE-2021-44228 및 MITRE ATT&CK T1190 (Exploit Public-Facing Application): 웹 요청 주소 인자에 jndi 원격 조회 구문을 넣어 취약한 서버의 원격 조회를 유발하는 명확한 공개 취약점 악용 신호입니다."
+    },
+    {
+      "id": "t1190-cve-scanner-probe-with-jndi-lookup",
+      "name": "알려진 취약점 점검 도구 흔적과 원격 조회 구문(jndi 형태) 결합 시도",
+      "condition": "rule.mitre 에 T1190 이 포함되고 rule.level >= 10 이며 알려진 취약점 점검 흔적(probe 등)이나 머리글·주소 동시 주입과 함께 CVE-2021-44228 원격 조회 구문이 나타난 경우",
+      "basis": "CVE-2021-44228 및 MITRE ATT&CK T1190 (Exploit Public-Facing Application): 자동화된 취약점 점검 도구나 다중 위치(머리글·인자)에 원격 조회 구문을 함께 보내 취약 여부를 탐색·악용하는 명확한 공격 신호입니다."
+    },
+    {
+      "id": "t1190-ambiguous-cve-keyword-or-partial-syntax",
+      "name": "원격 조회 구문 없는 취약점·라이브러리 단어 검색 또는 잘린 표기",
+      "condition": "rule.mitre 에 T1190 이 포함되고 rule.level 이 5~9 사이이며 실제 원격 조회 구문 없이 CVE 번호·jndi 단어·점검 도구 유사 이름·중괄호 조각만 포함된 경우",
+      "basis": "CVE-2021-44228 및 MITRE ATT&CK T1190 (Exploit Public-Facing Application): 완전한 원격 조회 구문 없는 취약점 이름 검색이나 잘린 문자열은 초기 정찰일 수 있으나 정상적인 수업 자료 조회와 겹치므로 알림(alert)으로만 감시합니다."
+    }
+  ]
+}
